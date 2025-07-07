@@ -241,7 +241,11 @@ class InferenceMethodsComparator:
                 "max_new_tokens": self.config.max_new_tokens,
                 "num_beams": current_sequences,
                 "num_return_sequences": current_sequences,
-                "early_stopping": True,
+                "early_stopping": True,                
+                "do_sample": True,
+                "temperature": self.config.temperature,
+                "top_p": self.config.top_p,
+                "top_k": self.config.top_k,
                 "pad_token_id": self.tokenizer.eos_token_id,
                 "use_cache": True
             }
@@ -359,14 +363,12 @@ class InferenceMethodsComparator:
 
         # Prepare batch inputs
         messages_batch = [[{"role": "user", "content": p}] for p in prompts_batch]
-        texts_batch = [
-            self.tokenizer.apply_chat_template(
-                messages,
+        texts_batch = self.tokenizer.apply_chat_template(
+                messages_batch,
                 tokenize=False,
                 add_generation_prompt=True,
                 enable_thinking=False
-            ) for messages in messages_batch
-        ]
+            )
 
         inputs = self.tokenizer(
             texts_batch,
