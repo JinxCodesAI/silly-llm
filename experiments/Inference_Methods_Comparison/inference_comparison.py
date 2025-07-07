@@ -46,6 +46,7 @@ class InferenceConfig:
     num_completions: int = 3
     prompts: List[str] = None
     batch_size: int = None  # Auto-determined if None, used for batched methods
+    methods_to_test: List[str] = None  # If None, test all methods
 
     # Performance settings
     use_quantization: bool = False
@@ -114,13 +115,17 @@ class InferenceMethodsComparator:
             **model_kwargs
         )
         
-        # Load assistant model for speculative decoding
-        print(f"Loading assistant model {self.config.assistant_model}...")
-        self.assistant_model = AutoModelForCausalLM.from_pretrained(
-            self.config.assistant_model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto"
-        )
+        # Load assistant model for speculative decoding (only if different from main model)
+        if self.config.use_speculative_decoding and self.config.assistant_model != self.config.main_model:
+            print(f"Loading assistant model {self.config.assistant_model}...")
+            self.assistant_model = AutoModelForCausalLM.from_pretrained(
+                self.config.assistant_model,
+                torch_dtype=torch.bfloat16,
+                device_map="auto"
+            )
+        else:
+            print("Skipping assistant model (same as main model or speculative decoding disabled)")
+            self.assistant_model = None
         
         # Set cache implementation
         if self.config.cache_implementation == "static":
@@ -428,7 +433,8 @@ class InferenceMethodsComparator:
 
     def run_all_experiments(self) -> Dict[str, List[InferenceResult]]:
         """Run all experiments for all methods and prompts"""
-        methods = ["standard", "beam_search", "batched", "nucleus_sampling"]
+        all_methods = ["standard", "beam_search", "batched", "nucleus_sampling"]
+        methods = self.config.methods_to_test or all_methods
         all_results = {method: [] for method in methods}
 
         print(f"\n🚀 Starting inference comparison experiments...")
@@ -524,7 +530,7 @@ class InferenceMethodsComparator:
             "results": serializable_results,
             "timestamp": time.time()
         }
-
+        
         output_path = Path("/teamspace/studios/this_studio/silly-llm/experiments") / filename
         with open(output_path, 'w') as f:
             json.dump(output_data, f, indent=2)
@@ -609,6 +615,8 @@ def main():
     parser.add_argument("--interactive", action="store_true", help="Interactive configuration")
     parser.add_argument("--quick", action="store_true", help="Quick test with minimal settings")
     parser.add_argument("--output", type=str, help="Output file name")
+    parser.add_argument("--methods", nargs="+", choices=["standard", "beam_search", "batched", "nucleus_sampling"],
+                       help="Specific methods to test")
 
     args = parser.parse_args()
 
@@ -621,12 +629,22 @@ def main():
         config = interactive_config()
     elif args.quick:
         config = InferenceConfig(
+            main_model="Qwen/Qwen3-4B",
+            assistant_model="Qwen/Qwen3-0.6B",
             num_completions=2,
             max_new_tokens=50,
-            prompts=["Tell me a short story about a cat"]
+            prompts=["Tell me a short story about a cat"],
+            use_quantization=True,
+            use_flash_attention=True,
+            use_speculative_decoding=True,
+            methods_to_test=["standard", "batched"]  # Test only 2 methods for speed
         )
     else:
         config = InferenceConfig()
+
+    # Override methods if specified
+    if args.methods:
+        config.methods_to_test = args.methods
 
     print(f"\n🎯 Final Configuration:")
     print(f"  Main model: {config.main_model}")

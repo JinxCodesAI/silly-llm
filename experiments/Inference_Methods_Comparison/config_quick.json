@@ -1,6 +1,5 @@
 {
-  "main_model": "Qwen/Qwen3-4B",
-  "assistant_model": "Qwen/Qwen3-0.6B",
+  "main_model": "Qwen/Qwen3-0.6B",
   "max_new_tokens": 50,
   "temperature": 0.7,
   "top_p": 0.9,
@@ -12,6 +11,6 @@
   ],
   "use_quantization": true,
   "use_flash_attention": true,
-  "use_speculative_decoding": true,
+  "use_speculative_decoding": false,
   "cache_implementation": "dynamic"
 }
