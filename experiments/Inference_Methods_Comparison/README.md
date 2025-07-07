@@ -6,9 +6,9 @@ This directory contains scripts to compare different transformer inference metho
 
 The comparison script tests the following inference methods:
 
-1. **Standard Generation**: Basic autoregressive generation
+1. **Standard/Simple Generation**: Basic autoregressive generation (one at a time)
 2. **Beam Search**: Multiple sequences with `num_return_sequences`
-3. **Batched Generation**: Repeating the same prompt in a batch
+3. **Batched Generation**: Multiple prompts processed simultaneously
 4. **Nucleus Sampling**: Top-p sampling with optimized parameters
 
 **Speculative Decoding**: Can be enabled as a flag (`use_speculative_decoding`) that works with ALL methods above, using Qwen3-0.6B as assistant model with Qwen3-4B as main model.

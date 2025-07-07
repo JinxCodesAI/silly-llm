@@ -255,7 +255,7 @@ class InferenceMethodsComparator:
                     completion_index=completion_idx,
                     generated_text=generated_text,
                     generation_time=per_sequence_time,
-                    memory_used_gb=memory_used / current_sequences,
+                    memory_used_gb=memory_used,  # Will be updated by run_experiment with method-wide memory
                     tokens_generated=tokens_generated,
                     tokens_per_second=tokens_per_second,
                     prompt=prompt
@@ -268,20 +268,60 @@ class InferenceMethodsComparator:
         return results
 
     def method_standard_generation(self) -> List[InferenceResult]:
-        """Standard generation (batched with batch_size=1)"""
-        # Create batches of size 1
-        batches = self.create_generation_batches()
+        """Standard generation (one at a time, no memory reset between items)"""
+        # Get all generation tasks
+        all_generations = []
+        for prompt_idx, prompt in enumerate(self.config.prompts):
+            num_comps = self.get_completions_for_prompt(prompt_idx)
+            for comp_idx in range(num_comps):
+                all_generations.append((prompt, prompt_idx, comp_idx))
+
         results = []
 
-        for batch in batches:
-            # Process each item individually (batch_size=1)
-            for item in batch:
-                single_batch = [item]
-                batch_results = self.method_batched_generation(single_batch)
-                # Update method name
-                for result in batch_results:
-                    result.method = "standard"
-                results.extend(batch_results)
+        # Process each generation individually (but don't reset memory between them)
+        for prompt, prompt_idx, completion_idx in all_generations:
+            # Prepare single input
+            inputs = self.prepare_input(prompt)
+
+            start_time = time.time()
+
+            generation_kwargs = {
+                "max_new_tokens": self.config.max_new_tokens,
+                "temperature": self.config.temperature,
+                "top_p": self.config.top_p,
+                "do_sample": True,
+                "pad_token_id": self.tokenizer.eos_token_id,
+                "use_cache": True
+            }
+
+            # Add speculative decoding if enabled
+            if self.config.use_speculative_decoding and self.assistant_model is not None:
+                generation_kwargs["assistant_model"] = self.assistant_model
+
+            with torch.no_grad():
+                outputs = self.main_model.generate(**inputs, **generation_kwargs)
+
+            generation_time = time.time() - start_time
+
+            # Extract generated text
+            input_length = inputs["input_ids"].shape[1]
+            generated_tokens = outputs[0][input_length:]
+            generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+            tokens_generated = len(generated_tokens)
+            tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0
+
+            results.append(InferenceResult(
+                method="standard",
+                prompt_index=prompt_idx,
+                completion_index=completion_idx,
+                generated_text=generated_text,
+                generation_time=generation_time,
+                memory_used_gb=0.0,  # Will be updated by run_experiment with method-wide memory
+                tokens_generated=tokens_generated,
+                tokens_per_second=tokens_per_second,
+                prompt=prompt
+            ))
 
         return results
 
@@ -351,7 +391,7 @@ class InferenceMethodsComparator:
                 completion_index=completion_idx,
                 generated_text=generated_text,
                 generation_time=per_item_time,
-                memory_used_gb=memory_used / len(batch),  # Divide memory by batch size
+                memory_used_gb=memory_used,  # Will be updated by run_experiment with method-wide memory
                 tokens_generated=tokens_generated,
                 tokens_per_second=tokens_per_second,
                 prompt=prompt
@@ -391,10 +431,17 @@ class InferenceMethodsComparator:
         speculative_suffix = " + speculative" if self.config.use_speculative_decoding else ""
         print(f"\n🔄 Running {method}{speculative_suffix}...")
 
+        # Start method-wide timing and memory tracking
+        method_start_time = time.time()
+        self.clear_memory()  # Reset memory tracking for this method
+
         results = []
 
-        if method == "standard":
+        if method == "standard" or method == "simple":
             results = self.method_standard_generation()
+            # Update method name to match config
+            for result in results:
+                result.method = method
 
         elif method == "beam_search":
             # Beam search processes prompts one by one
@@ -416,6 +463,16 @@ class InferenceMethodsComparator:
         elif method == "nucleus_sampling":
             results = self.method_nucleus_sampling()
 
+        # Calculate method-wide metrics
+        method_total_time = time.time() - method_start_time
+        method_peak_memory = self.get_memory_usage()
+
+        # Update all results with method-wide memory measurement
+        for result in results:
+            result.memory_used_gb = method_peak_memory
+
+        print(f"  ✅ {method} completed in {method_total_time:.2f}s, peak memory: {method_peak_memory:.3f}GB")
+
         # Update method names for speculative decoding
         if self.config.use_speculative_decoding:
             for result in results:
@@ -425,7 +482,7 @@ class InferenceMethodsComparator:
 
     def run_all_experiments(self) -> Dict[str, List[InferenceResult]]:
         """Run all experiments for all methods and prompts"""
-        all_methods = ["standard", "beam_search", "batched", "nucleus_sampling"]
+        all_methods = ["standard", "simple", "beam_search", "batched", "nucleus_sampling"]
 
         # If methods_to_test is explicitly set (not None), use it; otherwise use all methods
         if self.config.methods_to_test is not None:
@@ -618,7 +675,7 @@ def main():
     parser.add_argument("--interactive", action="store_true", help="Interactive configuration")
     parser.add_argument("--quick", action="store_true", help="Quick test with minimal settings")
     parser.add_argument("--output", type=str, help="Output file name")
-    parser.add_argument("--methods", nargs="+", choices=["standard", "beam_search", "batched", "nucleus_sampling"],
+    parser.add_argument("--methods", nargs="+", choices=["standard", "simple", "beam_search", "batched", "nucleus_sampling"],
                        help="Specific methods to test")
 
     args = parser.parse_args()
