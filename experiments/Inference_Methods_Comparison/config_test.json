@@ -8,7 +8,7 @@
   "num_completions": 16,
   "batch_size": 16,
   "prompts": [
-    "Count from 1 to 20"
+    "generate 20 random numbers, each from 1 to 99"
   ],
   "methods_to_test": ["batched", "simple"],
   "use_quantization": false,
