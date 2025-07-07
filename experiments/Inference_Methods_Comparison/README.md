@@ -26,8 +26,8 @@ For each method, the script measures:
 
 ### Quick Start
 
-```bash
-# Quick test with minimal settings (2 methods only)
+pip install -r requirements.txt  
+
 python inference_comparison.py --quick
 
 # Test specific methods only
