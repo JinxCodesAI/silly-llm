@@ -1,0 +1,18 @@
+{
+  "main_model": "Qwen/Qwen3-4B",
+  "assistant_model": "Qwen/Qwen3-0.6B",
+  "max_new_tokens": 150,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "top_k": 50,
+  "num_completions": 3,
+  "batch_size": null,
+  "prompts": [
+    "generate short (up to 150 words) bed time story containing word elephant and cake",
+    "generate short (up to 150 words) bed time story containing word dog and sausage"
+  ],
+  "use_quantization": false,
+  "use_flash_attention": true,
+  "use_speculative_decoding": true,
+  "cache_implementation": "dynamic"
+}
