@@ -10,31 +10,171 @@ This document outlines the step-by-step plan to replicate the ideas presented in
 
 ---
 
-## Phase 1: Synthetic Dataset Creation (`TinyStories`)
+## Phase 1: Modular Synthetic Dataset Creation
 
-**Objective:** Generate a large dataset of simple, coherent short stories using a vocabulary understandable by a 3-4 year old.
+**Objective:** Generate a large dataset of simple, coherent short stories using a flexible, extensible architecture that supports multiple LLM backends and generation strategies.
 
-**Steps:**
+### Core Components Architecture
 
-1.  **Vocabulary Compilation:**
-    *   **Action:** Create a vocabulary file (`vocabulary.json`) containing a list of simple words.
-    *   **Details:** The list should be categorized into `nouns`, `verbs`, and `adjectives`. Aim for approximately 1,500 words, mimicking the vocabulary of a young child. This can be sourced from educational resources for early childhood language development.
+#### 1. LLM Provider Interface
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
 
-2.  **Story Generation Script (`batch_generate.py`):**
-    *   **Action:** Develop a Python script to automate story generation using any model either local or available via API.
-    *   **Details:** The script will:
-        *   Load the `vocabulary.json`.
-        *   use story_features.json to enhance diversity.
-        *   Loop to generate a target number of stories. In each iteration:
-            *   Randomly select one noun, one verb, and one adjective from the vocabulary.
-            *   Randomly select a subset of story features.
-            *   Construct a detailed prompt for the LLM, instructing it to write a 3-5 paragraph story using only simple words, incorporating the selected words and features.
-            *   Call the LLM's API to generate the story.
-            *   Append the generated story to a text file (`tinystories_dataset.txt`).
+class LLMProvider(ABC):
+    """Abstract base class for LLM providers."""
 
-3.  **Dataset Finalization:**
-    *   **Action:** Run the `batch_generate.py` script to produce a substantial dataset.
-    *   **Details:** The final output will be a single large text file, with each story separated by a unique delimiter. This format will be used for tokenization and training in the next phase.
+    @abstractmethod
+    async def generate(self, prompt: str, **kwargs) -> str:
+        """Generate text from a prompt."""
+        pass
+
+    @abstractmethod
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return provider capabilities and limitations."""
+        pass
+```
+
+#### 2. LLM Provider Implementations
+
+**API-Based Provider (OpenAI-Compatible)**
+```python
+class OpenAICompatibleProvider(LLMProvider):
+    """Provider for OpenAI-compatible APIs."""
+
+    def __init__(self, api_key: str, base_url: str, model: str):
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.model = model
+
+    async def generate(self, prompt: str, **kwargs) -> str:
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            **kwargs
+        )
+        return response.choices[0].message.content
+```
+
+**Transformers-Based Provider**
+```python
+class TransformersProvider(LLMProvider):
+    """Provider for local transformers models."""
+
+    def __init__(self, model_name: str, device: str = "auto"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            device_map=device
+        )
+
+    async def generate(self, prompt: str, **kwargs) -> str:
+        # Implementation using transformers generate method
+        # Supports chat templates, thinking modes, etc.
+        pass
+```
+
+#### 3. Vocabulary Management System
+```python
+class VocabularyManager:
+    """Manages vocabulary generation and validation."""
+
+    def __init__(self, provider: LLMProvider, config: VocabularyConfig):
+        self.provider = provider
+        self.config = config
+        self.validator = VocabularyValidator(config.validation_rules)
+
+    async def generate_vocabulary(self) -> Vocabulary:
+        """Generate vocabulary using configured provider."""
+        pass
+
+    def validate_vocabulary(self, vocab: Vocabulary) -> ValidationResult:
+        """Validate vocabulary against age-appropriateness rules."""
+        pass
+```
+
+#### 4. Story Generation Pipeline
+```python
+class StoryGenerationPipeline:
+    """Orchestrates the story generation process."""
+
+    def __init__(self,
+                 llm_provider: LLMProvider,
+                 vocabulary: Vocabulary,
+                 prompt_generator: PromptGenerator,
+                 storage_provider: StorageProvider):
+        self.llm_provider = llm_provider
+        self.vocabulary = vocabulary
+        self.prompt_generator = prompt_generator
+        self.storage_provider = storage_provider
+
+    async def generate_stories(self, count: int) -> List[Story]:
+        """Generate specified number of stories."""
+        pass
+```
+
+### Configuration Management
+
+#### Central Configuration Schema
+```yaml
+# configs/generation.yaml
+llm_provider:
+  type: "transformers"  # or "openai_compatible"
+  config:
+    model_name: "Qwen/Qwen3-4B"
+    device: "auto"
+    generation_params:
+      max_new_tokens: 512
+      temperature: 0.8
+      top_p: 0.9
+
+vocabulary:
+  target_word_count: 1500
+  categories:
+    nouns: 750
+    verbs: 375
+    adjectives: 375
+  validation:
+    age_range: [3, 4]
+    complexity_threshold: 0.7
+
+generation:
+  batch_size: 32
+  total_stories: 10000
+  features:
+    - dialogue
+    - plot_twist
+    - moral_value
+    - bad_ending
+
+storage:
+  type: "local"  # or "s3", "gcs"
+  config:
+    output_dir: "./generated_data"
+    format: "jsonl"
+```
+
+### Modular Implementation Steps
+
+1.  **Core Framework Setup:**
+    *   Implement abstract base classes for all providers
+    *   Create dependency injection container
+    *   Set up configuration management system
+
+2.  **LLM Provider Implementation:**
+    *   Implement OpenAI-compatible provider
+    *   Implement transformers-based provider (supporting Qwen and other models)
+    *   Create provider factory for dynamic instantiation
+
+3.  **Vocabulary Generation Module:**
+    *   Implement vocabulary manager with pluggable validation
+    *   Create age-appropriateness validators
+    *   Support incremental vocabulary building
+
+4.  **Story Generation Pipeline:**
+    *   Implement modular prompt generation system
+    *   Create story generation orchestrator
+    *   Add support for different generation strategies (batch, streaming, branching)
 
 ---
 
@@ -151,3 +291,5 @@ This document outlines the step-by-step plan to replicate the ideas presented in
             *   The impact of instruction tuning.
             *   Performance against a baseline model like `GPT-2-XL`.
         *   Summarize the findings in a `results.md` file.
+
+
