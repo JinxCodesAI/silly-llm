@@ -89,16 +89,32 @@ This comprehensive guide explains how to use, configure, and extend the inferenc
    - Example: `batch_size=4` means process 4 prompts at once
 
 4. **`methods_to_test`**: Which inference methods to run
-   - `null` or not specified: Run all 4 methods (standard, beam_search, batched, nucleus_sampling)
+   - `null` or not specified: Run all methods (standard, simple, beam_search, batched, nucleus_sampling)
    - `["standard", "batched"]`: Run only these 2 methods
+   - `["simple", "batched"]`: Run simple (one-at-a-time) and batched methods
+   - **Validation**: Invalid method names cause immediate configuration error
+   - **Available methods**: `standard`, `simple`, `beam_search`, `batched`, `nucleus_sampling`
    - Total results = methods × total completions across all prompts
 
 #### Method Behavior
 
-- **Standard**: Batched generation with `batch_size=1` (one at a time)
+- **Standard/Simple**: One generation at a time (batch_size=1 equivalent)
 - **Batched**: Uses configured `batch_size` to process multiple prompts simultaneously
 - **Beam Search**: Processes prompts one by one, respects `batch_size` for sequences per prompt
 - **Nucleus Sampling**: Same as batched but with modified sampling parameters
+
+#### Configuration Validation
+
+The script validates configuration **before execution starts**:
+
+```json
+{
+  "methods_to_test": ["batched", "invalid_method"]
+}
+```
+**Result**: `❌ Configuration Error: Invalid method(s) specified: ['invalid_method']. Valid methods are: ['batched', 'beam_search', 'nucleus_sampling', 'simple', 'standard']`
+
+**No execution occurs** - fails immediately with clear error message.
 
 #### Example Scenarios
 

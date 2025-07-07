@@ -70,6 +70,20 @@ class InferenceConfig:
         if self.batch_size is None:
             self.batch_size = 4
 
+        # Validate methods_to_test
+        if self.methods_to_test is not None:
+            valid_methods = {"standard", "simple", "beam_search", "batched", "nucleus_sampling"}
+            invalid_methods = set(self.methods_to_test) - valid_methods
+            if invalid_methods:
+                raise ValueError(f"Invalid method(s) specified: {sorted(invalid_methods)}. "
+                               f"Valid methods are: {sorted(valid_methods)}")
+
+            # Check for duplicates
+            if len(self.methods_to_test) != len(set(self.methods_to_test)):
+                duplicates = [method for method in set(self.methods_to_test)
+                            if self.methods_to_test.count(method) > 1]
+                raise ValueError(f"Duplicate method(s) specified: {sorted(duplicates)}")
+
 @dataclass
 class InferenceResult:
     """Results from an inference experiment"""
@@ -682,14 +696,24 @@ def main():
 
     # Load or create configuration
     if args.config:
-        with open(args.config, 'r') as f:
-            config_dict = json.load(f)
+        try:
+            with open(args.config, 'r') as f:
+                config_dict = json.load(f)
 
-        # Handle null values properly - convert None to empty list for methods_to_test
-        if config_dict.get('methods_to_test') is None:
-            config_dict['methods_to_test'] = None  # Keep as None to indicate "use default"
+            # Handle null values properly - convert None to empty list for methods_to_test
+            if config_dict.get('methods_to_test') is None:
+                config_dict['methods_to_test'] = None  # Keep as None to indicate "use default"
 
-        config = InferenceConfig(**config_dict)
+            config = InferenceConfig(**config_dict)
+        except FileNotFoundError:
+            print(f"❌ Error: Configuration file '{args.config}' not found.")
+            return
+        except json.JSONDecodeError as e:
+            print(f"❌ Error: Invalid JSON in configuration file '{args.config}': {e}")
+            return
+        except ValueError as e:
+            print(f"❌ Configuration Error: {e}")
+            return
     elif args.interactive:
         config = interactive_config()
     elif args.quick:
@@ -709,7 +733,18 @@ def main():
 
     # Override methods if specified
     if args.methods:
-        config.methods_to_test = args.methods
+        try:
+            # Validate methods before setting
+            valid_methods = {"standard", "simple", "beam_search", "batched", "nucleus_sampling"}
+            invalid_methods = set(args.methods) - valid_methods
+            if invalid_methods:
+                print(f"❌ Error: Invalid method(s) specified: {sorted(invalid_methods)}")
+                print(f"Valid methods are: {sorted(valid_methods)}")
+                return
+            config.methods_to_test = args.methods
+        except Exception as e:
+            print(f"❌ Error setting methods: {e}")
+            return
 
     print(f"\n🎯 Final Configuration:")
     print(f"  Main model: {config.main_model}")
