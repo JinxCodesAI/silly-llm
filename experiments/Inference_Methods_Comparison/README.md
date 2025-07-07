@@ -17,7 +17,7 @@ The comparison script tests the following inference methods:
 
 For each method, the script measures:
 - Generation time (seconds)
-- Memory usage (GB)
+- Memory usage (GB) - Peak GPU memory during generation
 - Tokens per second
 - Number of tokens generated
 - Total completions

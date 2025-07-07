@@ -4,11 +4,13 @@
   "temperature": 0.7,
   "top_p": 0.9,
   "top_k": 50,
-  "num_completions": 2,
+  "num_completions": [3, 2, 3],
   "batch_size": 4,
   "methods_to_test": ["standard", "batched"],
   "prompts": [
-    "Tell me a short story about a cat"
+    "Tell me a short story about a cat",
+    "Write a poem about the ocean",
+    "Describe a magical forest"
   ],
   "use_quantization": true,
   "use_flash_attention": false,
