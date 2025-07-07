@@ -1,5 +1,5 @@
 # Core dependencies for inference comparison experiments
-torch>=2.0.0
+torch>=2.6.0
 transformers>=4.53.1
 accelerate>=1.8.1
 bitsandbytes>=0.46.1
