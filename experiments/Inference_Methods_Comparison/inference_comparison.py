@@ -525,7 +525,7 @@ class InferenceMethodsComparator:
             "timestamp": time.time()
         }
 
-        output_path = Path("experiments") / filename
+        output_path = Path("/teamspace/studios/this_studio/silly-llm/experiments") / filename
         with open(output_path, 'w') as f:
             json.dump(output_data, f, indent=2)
 
