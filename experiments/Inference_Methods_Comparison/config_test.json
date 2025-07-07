@@ -1,0 +1,18 @@
+{
+  "main_model": "Qwen/Qwen3-0.6B",
+  "assistant_model": "Qwen/Qwen3-0.6B",
+  "max_new_tokens": 30,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "top_k": 50,
+  "num_completions": 1,
+  "batch_size": null,
+  "prompts": [
+    "Hello, how are you?"
+  ],
+  "methods_to_test": ["standard"],
+  "use_quantization": false,
+  "use_flash_attention": false,
+  "use_speculative_decoding": false,
+  "cache_implementation": "dynamic"
+}
