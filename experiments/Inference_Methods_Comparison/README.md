@@ -27,14 +27,20 @@ For each method, the script measures:
 ### Quick Start
 
 ```bash
-# Quick test with minimal settings
+# Quick test with minimal settings (2 methods only)
 python inference_comparison.py --quick
+
+# Test specific methods only
+python inference_comparison.py --methods standard batched
 
 # Interactive configuration
 python inference_comparison.py --interactive
 
 # Use configuration file
 python inference_comparison.py --config config_example.json
+
+# Simple test (1 method, 1 completion)
+python inference_comparison.py --config config_test.json
 
 # Save results to specific file
 python inference_comparison.py --output my_results.json
@@ -124,9 +130,10 @@ python inference_comparison.py --config config_comprehensive.json
 
 Three example configurations are provided:
 
-1. **config_quick.json**: Fast test with 2 completions, 50 tokens, quantization + speculative decoding enabled
-2. **config_example.json**: Standard test with 3 completions, 150 tokens, default settings
-3. **config_comprehensive.json**: Thorough test with 5 completions, 150 tokens, 5 prompts, speculative decoding enabled
+1. **config_test.json**: Minimal test with 1 method, 1 completion, 30 tokens (fastest)
+2. **config_quick.json**: Fast test with 2 methods, 2 completions, 50 tokens, speculative decoding enabled
+3. **config_example.json**: Standard test with 3 completions, 150 tokens, default settings
+4. **config_comprehensive.json**: Thorough test with 5 completions, 150 tokens, 5 prompts, speculative decoding enabled
 
 ## Example Output
 
