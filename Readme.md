@@ -1,4 +1,4 @@
-#Silly LLM
+# Silly LLM
 
 Silly LLM is a repository that builds on top of work outlined in **TinyStories: How Small Can Language Models Be and Still Speak
 Coherent English?** paper
