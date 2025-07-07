@@ -1,18 +1,17 @@
 {
-  "main_model": "Qwen/Qwen3-0.6B",
-  "assistant_model": "Qwen/Qwen3-0.6B",
-  "max_new_tokens": 100,
+  "main_model": "Qwen/Qwen3-1.7B",
+  "max_new_tokens": 300,
   "temperature": 0.7,
-  "top_p": 0.9,
-  "top_k": 50,
-  "num_completions": 128,
-  "batch_size": 16,
+  "top_p": 0.98,
+  "top_k": 20,
+  "num_completions": 256,
+  "batch_size": 256,
   "prompts": [
-    "generate 20 random numbers, each from 1 to 99"
+    "generate short (up to 150 words) bed time story containing word elephant and cake, use simple language that 3-4 year old can understand."
   ],
-  "methods_to_test": ["beam_search"],
-  "use_quantization": false,
-  "use_flash_attention": false,
+  "methods_to_test": ["batched"],
+  "use_quantization": true,
+  "use_flash_attention": true,
   "use_speculative_decoding": false,
   "cache_implementation": "dynamic"
 }
