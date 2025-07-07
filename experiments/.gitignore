@@ -1,0 +1,43 @@
+# Experiment results and outputs
+*/results/
+*/outputs/
+*_results_*.json
+*_output_*.txt
+*_log_*.txt
+
+# Model cache and downloads
+*/models/
+*/cache/
+*/.cache/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+temp_*
+tmp_*

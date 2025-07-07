@@ -1,0 +1,29 @@
+{
+  "_comment": "This config demonstrates your original scenario: 3 elephant stories + 5 dog stories = 8 total",
+  "_note": "Currently the script generates the same number of completions per prompt. To get 3+5, run two separate experiments or modify the script.",
+  
+  "main_model": "Qwen/Qwen3-4B",
+  "assistant_model": "Qwen/Qwen3-0.6B",
+  "max_new_tokens": 150,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "top_k": 50,
+  "num_completions": 4,
+  "batch_size": null,
+  "prompts": [
+    "generate short (up to 150 words) bed time story containing word elephant and cake",
+    "generate short (up to 150 words) bed time story containing word dog and sausage"
+  ],
+  "use_quantization": false,
+  "use_flash_attention": true,
+  "use_speculative_decoding": true,
+  "cache_implementation": "dynamic",
+  
+  "_instructions": [
+    "This generates 4 completions per prompt (8 total)",
+    "To get exactly 3+5 completions:",
+    "1. Run with elephant prompt and num_completions=3",
+    "2. Run with dog prompt and num_completions=5",
+    "3. Or modify the script to support per-prompt completion counts"
+  ]
+}
