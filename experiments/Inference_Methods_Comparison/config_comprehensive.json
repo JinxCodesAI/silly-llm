@@ -1,0 +1,21 @@
+{
+  "main_model": "Qwen/Qwen3-4B",
+  "assistant_model": "Qwen/Qwen3-0.6B",
+  "max_new_tokens": 150,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "top_k": 50,
+  "num_completions": 5,
+  "batch_size": 4,
+  "prompts": [
+    "generate short (up to 150 words) bed time story containing word elephant and cake",
+    "generate short (up to 150 words) bed time story containing word dog and sausage",
+    "write a brief explanation of how photosynthesis works",
+    "describe a perfect day at the beach in summer",
+    "create a recipe for chocolate chip cookies"
+  ],
+  "use_quantization": false,
+  "use_flash_attention": true,
+  "use_speculative_decoding": true,
+  "cache_implementation": "static"
+}
