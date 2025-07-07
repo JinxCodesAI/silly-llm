@@ -21,10 +21,10 @@ This document outlines the step-by-step plan to replicate the ideas presented in
     *   **Details:** The list should be categorized into `nouns`, `verbs`, and `adjectives`. Aim for approximately 1,500 words, mimicking the vocabulary of a young child. This can be sourced from educational resources for early childhood language development.
 
 2.  **Story Generation Script (`batch_generate.py`):**
-    *   **Action:** Develop a Python script to automate story generation using a powerful foundation model like GPT-4.
+    *   **Action:** Develop a Python script to automate story generation using any model either local or available via API.
     *   **Details:** The script will:
         *   Load the `vocabulary.json`.
-        *   Define a list of "story features" (e.g., `dialogue`, `plot twist`, `bad ending`, `moral value`) to enhance diversity.
+        *   use story_features.json to enhance diversity.
         *   Loop to generate a target number of stories. In each iteration:
             *   Randomly select one noun, one verb, and one adjective from the vocabulary.
             *   Randomly select a subset of story features.
