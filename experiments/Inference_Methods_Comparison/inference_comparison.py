@@ -204,14 +204,14 @@ class InferenceMethodsComparator:
     def prepare_input(self, prompt: str) -> Dict[str, torch.Tensor]:
         """Prepare input for generation with chat template"""
         messages = [{"role": "user", "content": prompt}]
-        
+
         text = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True,
             enable_thinking=False  # Always use non-thinking mode as requested
         )
-        
+
         return self.tokenizer(text, return_tensors="pt").to(self.main_model.device)
     
 
@@ -229,7 +229,10 @@ class InferenceMethodsComparator:
         while remaining_sequences > 0:
             current_sequences = min(remaining_sequences, self.config.batch_size)
 
-            self.clear_memory()
+            # Only clear memory at the start of the first iteration
+            if remaining_sequences == num_sequences:
+                self.clear_memory()
+
             inputs = self.prepare_input(prompt)
 
             start_time = time.time()
@@ -247,8 +250,12 @@ class InferenceMethodsComparator:
             if self.config.use_speculative_decoding and self.assistant_model is not None:
                 generation_kwargs["assistant_model"] = self.assistant_model
 
-            with torch.no_grad():
-                outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            try:
+                with torch.no_grad():
+                    outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            except Exception as e:
+                print(f"❌ Error during beam search generation: {e}")
+                raise
 
             generation_time = time.time() - start_time
             memory_used = self.get_memory_usage()
@@ -312,8 +319,12 @@ class InferenceMethodsComparator:
             if self.config.use_speculative_decoding and self.assistant_model is not None:
                 generation_kwargs["assistant_model"] = self.assistant_model
 
-            with torch.no_grad():
-                outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            try:
+                with torch.no_grad():
+                    outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            except Exception as e:
+                print(f"❌ Error during generation: {e}")
+                raise
 
             generation_time = time.time() - start_time
 
@@ -341,7 +352,7 @@ class InferenceMethodsComparator:
 
     def method_batched_generation(self, batch: List[Tuple[str, int, int]]) -> List[InferenceResult]:
         """Batched generation with mixed prompts"""
-        self.clear_memory()
+        # Memory is managed by run_experiment method
 
         # Extract prompts from batch
         prompts_batch = [item[0] for item in batch]
@@ -365,7 +376,6 @@ class InferenceMethodsComparator:
         ).to(self.main_model.device)
 
         start_time = time.time()
-        start_memory = self.get_memory_usage()
 
         generation_kwargs = {
             "max_new_tokens": self.config.max_new_tokens,
@@ -380,8 +390,12 @@ class InferenceMethodsComparator:
         if self.config.use_speculative_decoding and self.assistant_model is not None:
             generation_kwargs["assistant_model"] = self.assistant_model
 
-        with torch.no_grad():
-            outputs = self.main_model.generate(**inputs, **generation_kwargs)
+        try:
+            with torch.no_grad():
+                outputs = self.main_model.generate(**inputs, **generation_kwargs)
+        except Exception as e:
+            print(f"❌ Error during batched generation: {e}")
+            raise
 
         generation_time = time.time() - start_time
         memory_used = self.get_memory_usage()  # Get peak memory used during generation
