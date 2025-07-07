@@ -10,8 +10,8 @@
     "generate short (up to 150 words) bed time story containing word elephant and cake, use simple language that 3-4 year old can understand."
   ],
   "methods_to_test": ["batched"],
-  "use_quantization": true,
-  "use_flash_attention": true,
+  "use_quantization": false,
+  "use_flash_attention": false,
   "use_speculative_decoding": false,
   "cache_implementation": "dynamic"
 }
