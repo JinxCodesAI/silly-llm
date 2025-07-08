@@ -5,12 +5,12 @@
   "temperature": 0.7,
   "top_p": 0.9,
   "top_k": 50,
-  "num_completions": 1,
+  "num_completions": 512,
   "batch_size": null,
   "prompts": [
     "Hello, how are you?"
   ],
-  "methods_to_test": ["standard"],
+  "methods_to_test": ["batched"],
   "use_quantization": false,
   "use_flash_attention": false,
   "use_speculative_decoding": false,
