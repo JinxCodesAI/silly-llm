@@ -1,0 +1,3 @@
+# Dependencies for OpenAI-compatible API provider
+pydantic>=2.0.0
+httpx>=0.24.0

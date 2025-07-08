@@ -1,0 +1,108 @@
+{
+  "description": "Sample k-shot prompts for bedtime story generation based on example_conversation.txt",
+  "format": "Each sample shows how k-shot examples are formatted for the generation pipeline",
+  "samples": [
+    {
+      "name": "2-shot example with dialogue and moral value",
+      "k_shot_count": 2,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"door\", \"warm\", \"snuggle\"\nmake sure the story contains a dialogue\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Benny blinked his sleepy eyes. \"Dad, not tired!\" he whispered.\nMom tiptoed through the door. \"Night-night, little bunny,\" she said.\n\"But the dark is cold!\" Benny sighed. He snuggled his fluffy teddy, Blinky.\nMom smiled. She pointed out the window. \"See that tiny star? It's warm. It watches you.\"\nBenny peeked. \"Is it... a golden light?\"\nShe kissed his forehead. \"Big dream awaits. Snuggle under your bed's blue blanket. It's magic!\"\nHe hugged Blinky tight. Snuggle, snuggle. Benny's toes warmed.\n\"Mom, can we trace stars?\"\n\"Shh,\" she giggled, \"after sleep. Big dreams wear little socks!\"\nBenny yawned, yawning wide. \"Can... Dad read after?\"\n\"First, dream-bumps!\" Mom whispered.\nThe frogs hopped. The horses galloped.\nBenny giggled, pointing. \"Dad, play again!\"\nSoon, he blinked. Little by little, silence came.\nIn the soft dark, Blinky whispered, \"Sweet dreams, brave boy. Count stars, not fears.\"\nBenny patted his warm blanket. \"Night. Tired. Hug Blinky. Dream...\"\nHe slid down, slid down... into a cozy, bright castle of dreams."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"door\", \"warm\", \"snuggle\"\nmake sure story convey a clear moral value\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Lily couldn't sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.\nSuddenly, the book started to giggle. It whispered, \"Lily, let's dream!\" The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily's eyes blinked in surprise.\nBut soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, \"Teddy, I'm scared.\"\nThe book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words cat jump happy\n\nmake sure story has sad elements but ends well\n\nkeep story coherent and gramatically correct"
+        }
+      ]
+    },
+    {
+      "name": "1-shot example with sad-to-happy story",
+      "k_shot_count": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"dream\", \"shovel\", \"eat\"\nmake sure story has sad elements but ends well\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Benny the bunny found a red shovel one night. He wanted to eat a berry, but all were gone. Sadly, he went to bed.\nThat night, Benny dreamed! His shovel glowed, ding-ding! It carried him on a boat to a moonlit garden. There, golden berries sparkled. Benny dug a soft hill with the shovel, lifting a bunch of sweet blueberries. He ate them, splish-splash-giggle!\nMorning came. Benny peeked. In his real garden, under a tree, he saw a green leaf–covered box. Inside: squishy blueberries! He nibbled one, yum! The shovel, now muddy, snuggled by a stone.\nBunny smiled. \"You are magic, Shovel!\" And the shovel thumped, like a tiny drum.\nThe tale ends here: Benny full, cozy. The shovel dreams of new digs. The sun shines, bright."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words moon star bright\n\nmake sure story do not have sad elements and ends well\n\nkeep story coherent and gramatically correct"
+        }
+      ]
+    },
+    {
+      "name": "3-shot example with all conversation types",
+      "k_shot_count": 3,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"dream\", \"shovel\", \"eat\"\nmake sure story has sad elements but ends well\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Benny the bunny found a red shovel one night. He wanted to eat a berry, but all were gone. Sadly, he went to bed.\nThat night, Benny dreamed! His shovel glowed, ding-ding! It carried him on a boat to a moonlit garden. There, golden berries sparkled. Benny dug a soft hill with the shovel, lifting a bunch of sweet blueberries. He ate them, splish-splash-giggle!\nMorning came. Benny peeked. In his real garden, under a tree, he saw a green leaf–covered box. Inside: squishy blueberries! He nibbled one, yum! The shovel, now muddy, snuggled by a stone.\nBunny smiled. \"You are magic, Shovel!\" And the shovel thumped, like a tiny drum.\nThe tale ends here: Benny full, cozy. The shovel dreams of new digs. The sun shines, bright."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"door\", \"warm\", \"snuggle\"\nmake sure the story contains a dialogue\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Benny blinked his sleepy eyes. \"Dad, not tired!\" he whispered.\nMom tiptoed through the door. \"Night-night, little bunny,\" she said.\n\"But the dark is cold!\" Benny sighed. He snuggled his fluffy teddy, Blinky.\nMom smiled. She pointed out the window. \"See that tiny star? It's warm. It watches you.\"\nBenny peeked. \"Is it... a golden light?\"\nShe kissed his forehead. \"Big dream awaits. Snuggle under your bed's blue blanket. It's magic!\"\nHe hugged Blinky tight. Snuggle, snuggle. Benny's toes warmed.\n\"Mom, can we trace stars?\"\n\"Shh,\" she giggled, \"after sleep. Big dreams wear little socks!\"\nBenny yawned, yawning wide. \"Can... Dad read after?\"\n\"First, dream-bumps!\" Mom whispered.\nThe frogs hopped. The horses galloped.\nBenny giggled, pointing. \"Dad, play again!\"\nSoon, he blinked. Little by little, silence came.\nIn the soft dark, Blinky whispered, \"Sweet dreams, brave boy. Count stars, not fears.\"\nBenny patted his warm blanket. \"Night. Tired. Hug Blinky. Dream...\"\nHe slid down, slid down... into a cozy, bright castle of dreams."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"door\", \"warm\", \"snuggle\"\nmake sure story convey a clear moral value\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Lily couldn't sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.\nSuddenly, the book started to giggle. It whispered, \"Lily, let's dream!\" The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily's eyes blinked in surprise.\nBut soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, \"Teddy, I'm scared.\"\nThe book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words teddy bear sleep\n\nmake sure the story contains a dialogue\n\nkeep story coherent and gramatically correct"
+        }
+      ]
+    }
+  ],
+  "usage_notes": [
+    "These samples show the exact format used by the pipeline for k-shot prompting",
+    "Each message has a 'role' (user/assistant) and 'content' field",
+    "The final user message is the actual prompt to be completed",
+    "Previous user/assistant pairs serve as examples for the model",
+    "The pipeline automatically formats these into chat templates for transformers models"
+  ],
+  "story_features_used": [
+    "make sure story has sad elements but ends well",
+    "make sure story do not have sad elements and ends well", 
+    "make sure story has scary elements but ends well",
+    "make sure story convey a clear moral value",
+    "make sure the story contains a dialogue"
+  ],
+  "vocabulary_examples": {
+    "from_examples": ["dream", "shovel", "eat", "door", "warm", "snuggle"],
+    "sample_combinations": [
+      ["cat", "jump", "happy"],
+      ["moon", "star", "bright"],
+      ["teddy", "bear", "sleep"],
+      ["book", "read", "cozy"],
+      ["garden", "flower", "colorful"]
+    ]
+  }
+}
