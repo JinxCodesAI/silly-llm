@@ -1,5 +1,6 @@
 # Minimal requirements for flash attention bug reproduction
 torch>=2.0.0
-transformers>=4.40.0
-flash-attn>=2.5.0
-accelerate>=0.20.0
+transformers>=4.53.1
+flash-attn>=2.8.0.post2
+accelerate>=1.8.1
+

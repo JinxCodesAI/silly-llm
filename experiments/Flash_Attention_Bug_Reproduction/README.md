@@ -23,7 +23,7 @@ The script helps identify and reproduce bugs in flash attention by:
 pip install -r requirements.txt
 
 # Or install manually:
-pip install torch>=2.0.0 transformers>=4.40.0 flash-attn>=2.5.0 accelerate>=0.20.0
+pip install torch>=2.0.0 transformers>=4.40.0 flash-attn>=2.5.0 accelerate>=0.20.0 torchvision
 ```
 
 ## Usage
