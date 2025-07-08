@@ -96,6 +96,25 @@ async def main():
         default="https://api.openai.com/v1",
         help="Base URL for OpenAI-compatible API (default: OpenAI)"
     )
+
+    # Data file overrides
+    parser.add_argument(
+        "--vocabulary-path",
+        type=str,
+        help="Override vocabulary file path from config"
+    )
+
+    parser.add_argument(
+        "--story-features-path",
+        type=str,
+        help="Override story features file path from config"
+    )
+
+    parser.add_argument(
+        "--conversation-examples-path",
+        type=str,
+        help="Override conversation examples file path from config"
+    )
     
     parser.add_argument(
         "--log-level",
@@ -155,6 +174,14 @@ async def main():
     if args.no_diversity:
         config.generation_settings.ensure_diversity = False
 
+    # Apply data file overrides
+    if args.vocabulary_path:
+        config.data_paths.vocabulary_path = args.vocabulary_path
+    if args.story_features_path:
+        config.data_paths.story_features_path = args.story_features_path
+    if args.conversation_examples_path:
+        config.data_paths.conversation_examples_path = args.conversation_examples_path
+
     # Validate provider options
     provider_count = sum([args.mock_provider, args.openai_provider])
     if provider_count > 1:
@@ -203,7 +230,8 @@ async def main():
             device=config.device,
             use_mock_provider=args.mock_provider,
             use_openai_provider=args.openai_provider,
-            api_base_url=args.api_base_url
+            api_base_url=args.api_base_url,
+            validation_settings=config.validation_settings.model_dump()
         )
         
         # Generate stories

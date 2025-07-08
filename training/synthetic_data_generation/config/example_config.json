@@ -1,4 +1,5 @@
 {
+  "_comment": "Example configuration for all providers - modify as needed",
   "model_name": "Qwen/Qwen2.5-3B-Instruct",
   "device": "auto",
   "generation": {

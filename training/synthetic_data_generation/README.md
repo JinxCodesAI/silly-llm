@@ -96,16 +96,58 @@ pip install -r requirements.txt
 
 ## Configuration
 
-The system uses JSON configuration files. See `config/example_config.json` for a complete example.
+The system uses JSON configuration files that work with all providers. Multiple example configs are provided:
 
-### Key Configuration Options
+- **`config/example_config.json`** - General configuration for all providers
+- **`config/openai_config.json`** - Optimized for OpenAI-compatible APIs
+- **`config/mock_config.json`** - Configuration for testing with MockProvider
 
+### Using Configuration Files
+
+```bash
+# Use with any provider
+python -m training.synthetic_data_generation.main --config config/example_config.json
+
+# Use with OpenAI provider (requires --openai-provider flag)
+python -m training.synthetic_data_generation.main --config config/openai_config.json --openai-provider
+
+# Use with mock provider (requires --mock-provider flag)
+python -m training.synthetic_data_generation.main --config config/mock_config.json --mock-provider
+
+# Override specific files from config
+python -m training.synthetic_data_generation.main \
+    --config config/example_config.json \
+    --conversation-examples-path "path/to/your/examples.txt" \
+    --story-features-path "path/to/your/features.json"
+```
+
+### Key Configuration Sections
+
+#### Model and Provider Settings
 - **model_name**: Model to use (HuggingFace model or API model name)
-- **num_stories**: Number of stories to generate
+- **device**: Device for local models ("auto", "cuda", "cpu") or "api"/"mock"
+
+#### Generation Parameters
 - **batch_size**: Batch size for efficient generation
+- **max_new_tokens**: Maximum tokens to generate per story
+- **temperature**: Sampling temperature (0.0-2.0)
+- **top_p**: Top-p sampling parameter
+
+#### Data Paths (can be overridden via command line)
+- **vocabulary_path**: Path to vocabulary JSON file
+- **story_features_path**: Path to story features JSON file
+- **conversation_examples_path**: Path to k-shot examples file
+
+#### Generation Settings
+- **num_stories**: Number of stories to generate
 - **k_shot_count**: Number of example conversations to include
 - **use_k_shot**: Whether to use k-shot prompting
 - **ensure_diversity**: Ensure word combinations are diverse across prompts
+
+#### Validation Settings (works with all providers)
+- **validate_stories**: Whether to validate generated stories
+- **min_words**: Minimum words per story
+- **max_words**: Maximum words per story
 
 ### Provider Options
 
@@ -210,6 +252,33 @@ python -m training.synthetic_data_generation.main --mock-provider
 python training/synthetic_data_generation/examples/test_openai_provider.py
 ```
 
+### Command Line Overrides
+
+You can override any configuration setting via command line:
+
+```bash
+# Override data files
+python -m training.synthetic_data_generation.main \
+    --config config/example_config.json \
+    --vocabulary-path "path/to/custom/vocabulary.json" \
+    --story-features-path "path/to/custom/features.json" \
+    --conversation-examples-path "path/to/custom/examples.txt"
+
+# Override generation settings
+python -m training.synthetic_data_generation.main \
+    --config config/example_config.json \
+    --num-stories 500 \
+    --batch-size 16 \
+    --model-name "different-model"
+
+# Mix config with provider flags
+python -m training.synthetic_data_generation.main \
+    --config config/openai_config.json \
+    --openai-provider \
+    --api-base-url "http://localhost:8000/v1" \
+    --model-name "local-llama-model"
+```
+
 ### Advanced Options
 ```bash
 # Disable k-shot examples
@@ -308,31 +377,113 @@ Run with `--log-level DEBUG` for detailed logging:
 python -m training.synthetic_data_generation.main --log-level DEBUG --config my_config.yaml
 ```
 
-## Examples
+## Complete Examples
 
-### Generate 1000 stories with custom model
+### 1. Using Configuration Files
+
+#### With TransformersProvider (Local Models)
 ```bash
-python -m training.synthetic_data_generation.main \
-    --model-name "microsoft/DialoGPT-medium" \
-    --num-stories 1000 \
-    --batch-size 12 \
-    --output-path "bedtime_stories_1k.jsonl"
+# Create and edit config
+python -m training.synthetic_data_generation.main --create-config my_config.json
+# Edit my_config.json as needed
+
+# Run with config
+python -m training.synthetic_data_generation.main --config my_config.json
 ```
 
-### Quick test run
+#### With OpenAI-Compatible API
 ```bash
+# Set API key
+export AI_API_KEY=your_api_key
+
+# Use provided OpenAI config
 python -m training.synthetic_data_generation.main \
-    --num-stories 10 \
-    --batch-size 2 \
-    --output-path "test_stories.jsonl" \
-    --log-level DEBUG
+    --config config/openai_config.json \
+    --openai-provider
+
+# Or override settings
+python -m training.synthetic_data_generation.main \
+    --config config/openai_config.json \
+    --openai-provider \
+    --model-name "gpt-4" \
+    --num-stories 200
 ```
 
-### Production run with monitoring
+#### With MockProvider (Testing)
+```bash
+# Use provided mock config
+python -m training.synthetic_data_generation.main \
+    --config config/mock_config.json \
+    --mock-provider
+
+# Quick test with custom files
+python -m training.synthetic_data_generation.main \
+    --config config/mock_config.json \
+    --mock-provider \
+    --conversation-examples-path "path/to/your/examples.txt"
+```
+
+### 2. Using Custom Data Files
+
+#### Custom Conversation Examples
+```bash
+# Use your own k-shot examples
+python -m training.synthetic_data_generation.main \
+    --conversation-examples-path "path/to/your/examples.txt" \
+    --mock-provider \
+    --num-stories 10
+
+# With any provider
+python -m training.synthetic_data_generation.main \
+    --config config/example_config.json \
+    --conversation-examples-path "path/to/your/examples.txt"
+```
+
+#### Custom Story Features
+```bash
+# Use custom story features
+python -m training.synthetic_data_generation.main \
+    --story-features-path "path/to/your/features.json" \
+    --mock-provider \
+    --num-stories 10
+```
+
+#### Custom Vocabulary
+```bash
+# Use custom vocabulary
+python -m training.synthetic_data_generation.main \
+    --vocabulary-path "path/to/your/vocabulary.json" \
+    --mock-provider \
+    --num-stories 10
+```
+
+### 3. Production Examples
+
+#### Large Scale Generation
 ```bash
 python -m training.synthetic_data_generation.main \
-    --config production_config.json \
+    --config config/example_config.json \
+    --num-stories 10000 \
+    --batch-size 16 \
+    --output-path "large_dataset.jsonl"
+```
+
+#### With Monitoring
+```bash
+python -m training.synthetic_data_generation.main \
+    --config config/openai_config.json \
+    --openai-provider \
     --log-level INFO > generation.log 2>&1
+```
+
+#### Custom API Endpoint
+```bash
+export AI_API_KEY=your_local_api_key
+python -m training.synthetic_data_generation.main \
+    --config config/openai_config.json \
+    --openai-provider \
+    --api-base-url "http://localhost:8000/v1" \
+    --model-name "local-llama-7b"
 ```
 
 ## Dependencies

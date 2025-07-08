@@ -31,7 +31,8 @@ class StoryGenerator:
                  device: str = "auto",
                  use_mock_provider: bool = False,
                  use_openai_provider: bool = False,
-                 api_base_url: str = "https://api.openai.com/v1"):
+                 api_base_url: str = "https://api.openai.com/v1",
+                 validation_settings: Optional[Dict[str, Any]] = None):
         """Initialize story generator.
         
         Args:
@@ -45,6 +46,7 @@ class StoryGenerator:
             use_mock_provider: Whether to use mock provider for testing
             use_openai_provider: Whether to use OpenAI-compatible API provider
             api_base_url: Base URL for OpenAI-compatible API
+            validation_settings: Optional validation settings override
         """
         self.model_name = model_name
         self.vocabulary_path = vocabulary_path
@@ -55,6 +57,7 @@ class StoryGenerator:
         self.use_mock_provider = use_mock_provider
         self.use_openai_provider = use_openai_provider
         self.api_base_url = api_base_url
+        self.validation_settings = validation_settings or {}
         
         # Use default config if not provided
         self.generation_config = generation_config or GenerationConfig()
@@ -100,10 +103,13 @@ class StoryGenerator:
             k_shot_count=self.k_shot_count
         )
         
-        # Initialize batch processor
+        # Initialize batch processor with validation settings
         self.batch_processor = BatchProcessor(
             llm_provider=self.llm_provider,
-            generation_config=self.generation_config
+            generation_config=self.generation_config,
+            validate_stories=self.validation_settings.get('validate_stories', True),
+            min_words=self.validation_settings.get('min_words', 50),
+            max_words=self.validation_settings.get('max_words', 300)
         )
         
         logger.info("All components initialized successfully")
