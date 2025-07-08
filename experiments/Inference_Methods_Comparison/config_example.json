@@ -12,7 +12,7 @@
     "generate short (up to 150 words) bed time story containing word dog and sausage"
   ],
   "use_quantization": false,
-  "use_flash_attention": true,
+  "use_flash_attention": false,
   "use_speculative_decoding": false,
   "cache_implementation": "dynamic"
 }
