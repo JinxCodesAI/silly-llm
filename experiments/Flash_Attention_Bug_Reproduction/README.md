@@ -44,13 +44,13 @@ python flash_bug_reproduction_v2.py
 
 ### Version 1 (flash_attention_bug_reproduction.py):
 - Uses `AutoModelForCausalLM` with any Qwen model
-- Uses `Qwen/Qwen2.5-0.5B` by default
+- Uses `Qwen/Qwen3-0.6B` by default
 - Simple comparison between standard and flash attention
 - Uses chat templates and sampling generation
 
 ### Version 2 (flash_bug_reproduction_v2.py):
-- Uses `Qwen3ForCausalLM` specifically (matches official tests)
-- Uses `Qwen/Qwen3-0.6B-Base` (same as official test suite)
+- Uses `AutoModelForCausalLM` with proper attention implementation switching
+- Uses `Qwen/Qwen3-0.6B` (same as official test suite)
 - Tests multiple attention implementations: eager, sdpa, flash_attention_2
 - Uses greedy generation (temperature=0) like official tests
 - Includes logits testing and numerical comparison with `torch.testing.assert_close`
@@ -129,13 +129,13 @@ Solution: The script uses a small model (0.5B parameters) to minimize memory usa
 
 ### Model not found
 ```
-OSError: Qwen/Qwen2.5-0.5B does not appear to be a model identifier
+OSError: Qwen/Qwen3-0.6B does not appear to be a model identifier
 ```
 Solution: The model will be downloaded automatically on first run. Ensure you have internet connection.
 
 ## Technical Details
 
-- **Model**: Qwen2.5-0.5B (small model for minimal resource usage)
+- **Model**: Qwen3-0.6B (small model for minimal resource usage)
 - **Precision**: bfloat16 (standard for modern models)
 - **Device**: Auto-detected (CUDA if available, otherwise CPU)
 - **Generation**: 100 tokens with temperature=0.7, top_p=0.9

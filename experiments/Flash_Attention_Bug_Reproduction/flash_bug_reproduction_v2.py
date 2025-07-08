@@ -20,8 +20,7 @@ Usage:
 import torch
 import time
 import traceback
-from transformers import AutoTokenizer, Qwen3ForCausalLM
-from transformers.testing_utils import torch_device
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def cleanup_memory():
     """Clean up GPU memory - similar to transformers test cleanup"""
@@ -29,7 +28,7 @@ def cleanup_memory():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
 
-def test_attention_implementation(model_name="Qwen/Qwen3-0.6B-Base", attn_implementation="eager"):
+def test_attention_implementation(model_name="Qwen/Qwen3-0.6B", attn_implementation="eager"):
     """
     Test specific attention implementation following Qwen3 test patterns
     
@@ -60,29 +59,32 @@ def test_attention_implementation(model_name="Qwen/Qwen3-0.6B-Base", attn_implem
         cleanup_memory()
         
         print("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-        
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
         print(f"Loading model with {attn_implementation} attention...")
-        
-        # Load model with specific attention implementation
+
+        # Load model with specific attention implementation (following original inference_comparison.py)
         model_kwargs = {
             "device_map": "auto",
-            "torch_dtype": torch.float32,  # Use float32 for better numerical stability in tests
+            "torch_dtype": torch.bfloat16,  # Use bfloat16 as in original script
         }
-        
-        if attn_implementation != "eager":
-            model_kwargs["attn_implementation"] = attn_implementation
-        
-        model = Qwen3ForCausalLM.from_pretrained(model_name, **model_kwargs)
+
+        if attn_implementation == "flash_attention_2":
+            model_kwargs["attn_implementation"] = "flash_attention_2"
+        elif attn_implementation == "sdpa":
+            model_kwargs["attn_implementation"] = "sdpa"
+        # For "eager", don't set attn_implementation (default)
+
+        model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
         
         # Test 1: Basic logits test (similar to test_model_600m_logits)
         print("Running logits test...")
         input_ids = [1, 306, 4658, 278, 6593, 310, 2834, 338]  # Same as in official test
-        input_tensor = torch.tensor([input_ids]).to(model.model.embed_tokens.weight.device)
-        
+        input_tensor = torch.tensor([input_ids]).to(model.device)
+
         with torch.no_grad():
             logits = model(input_tensor).logits.float().cpu()
-        
+
         result["logits"] = logits
         print(f"Logits shape: {logits.shape}")
         print(f"Logits mean: {logits.mean(-1)}")
@@ -90,7 +92,7 @@ def test_attention_implementation(model_name="Qwen/Qwen3-0.6B-Base", attn_implem
         # Test 2: Generation test (similar to test_model_600m_generation)
         print("Running generation test...")
         prompt = "My favourite condiment is "
-        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(model.model.embed_tokens.weight.device)
+        input_ids = tokenizer.encode(prompt, return_tensors="pt").to(model.device)
         
         start_time = time.time()
         
@@ -137,7 +139,7 @@ def test_attention_implementation(model_name="Qwen/Qwen3-0.6B-Base", attn_implem
     
     return result
 
-def compare_attention_implementations(model_name="Qwen/Qwen3-0.6B-Base"):
+def compare_attention_implementations(model_name="Qwen/Qwen3-0.6B"):
     """
     Compare different attention implementations following Qwen3 test methodology
     
@@ -151,7 +153,6 @@ def compare_attention_implementations(model_name="Qwen/Qwen3-0.6B-Base"):
     print(f"CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
         print(f"CUDA device: {torch.cuda.get_device_name()}")
-        print(f"Device: {torch_device}")
     
     # Test different attention implementations in order
     implementations = ["eager", "sdpa", "flash_attention_2"]
@@ -268,7 +269,7 @@ def compare_attention_implementations(model_name="Qwen/Qwen3-0.6B-Base"):
 def main():
     """Main function"""
     # Use the same model as in official Qwen3 tests
-    model_name = "Qwen/Qwen3-0.6B-Base"
+    model_name = "Qwen/Qwen3-0.6B"
     
     try:
         results = compare_attention_implementations(model_name)
@@ -277,7 +278,7 @@ def main():
         print(f"\n💾 Debug Information:")
         print(f"Model: {model_name}")
         print(f"PyTorch: {torch.__version__}")
-        print(f"Device: {torch_device}")
+        print(f"CUDA available: {torch.cuda.is_available()}")
         
         # Check if this matches expected behavior from official tests
         if "flash_attention_2" in results and not results["flash_attention_2"]["success"]:

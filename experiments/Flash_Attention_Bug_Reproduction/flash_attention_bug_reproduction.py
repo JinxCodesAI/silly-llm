@@ -15,7 +15,7 @@ import time
 import traceback
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-def test_inference(use_flash_attention=False, model_name="Qwen/Qwen2.5-0.5B"):
+def test_inference(use_flash_attention=False, model_name="Qwen/Qwen3-0.6B"):
     """
     Test inference with or without flash attention
     
@@ -68,13 +68,14 @@ def test_inference(use_flash_attention=False, model_name="Qwen/Qwen2.5-0.5B"):
         # Prepare input - simple hardcoded prompt
         prompt = "Write a short story about a robot learning to paint:"
         
-        # Apply chat template if available
+        # Apply chat template if available (following original inference_comparison.py pattern)
         try:
             messages = [{"role": "user", "content": prompt}]
             text = tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=True,
+                enable_thinking=False  # Always use non-thinking mode as in original
             )
         except Exception as e:
             print(f"Chat template not available, using raw prompt: {e}")
@@ -143,7 +144,7 @@ def test_inference(use_flash_attention=False, model_name="Qwen/Qwen2.5-0.5B"):
     
     return result
 
-def compare_implementations(model_name="Qwen/Qwen2.5-0.5B"):
+def compare_implementations(model_name="Qwen/Qwen3-0.6B"):
     """
     Compare inference with and without flash attention
     
@@ -218,7 +219,7 @@ def compare_implementations(model_name="Qwen/Qwen2.5-0.5B"):
 def main():
     """Main function"""
     # You can change the model here to test different models
-    model_name = "Qwen/Qwen2.5-0.5B"
+    model_name = "Qwen/Qwen3-0.6B"
     
     try:
         result_without, result_with = compare_implementations(model_name)
