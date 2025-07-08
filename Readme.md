@@ -1,6 +1,7 @@
 # Silly LLM
 
-Silly LLM is a modular, extensible framework that builds on the work outlined in **TinyStories: How Small Can Language Models Be and Still Speak Coherent English?** paper.
+Silly LLM aims to be easy to understand pipeline that builds on the work outlined in **TinyStories: How Small Can Language Models Be and Still Speak Coherent English?** paper
+and allows training of own SLM.
 
 ## Project Vision
 
