@@ -18,102 +18,157 @@ from training.synthetic_data_generation.src.story_generator import StoryGenerato
 
 async def main():
     """Main entry point for story generation."""
-    parser = argparse.ArgumentParser(description="Generate synthetic bedtime stories")
+    parser = argparse.ArgumentParser(
+        description="""
+Generate synthetic bedtime stories using various AI providers.
+
+PROVIDERS:
+  - TransformersProvider (default): Local HuggingFace models
+  - OpenAICompatibleProvider: OpenAI-compatible APIs (OpenAI, Together AI, local servers)
+  - MockProvider: Testing without dependencies
+
+BASIC USAGE:
+  # Quick test with mock provider
+  python -m training.synthetic_data_generation.main --mock-provider --num-stories 5
+
+  # Use OpenAI API
+  export AI_API_KEY=your_key
+  python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-3.5-turbo
+
+  # Use configuration file
+  python -m training.synthetic_data_generation.main --config config/example_config.json
+
+  # Override config settings
+  python -m training.synthetic_data_generation.main --config config/example_config.json --num-stories 100
+
+CONFIGURATION:
+  Configuration files work with all providers. Use --config to specify a file,
+  then add provider flags (--mock-provider, --openai-provider) as needed.
+  Command line arguments override config file settings.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     
     # Configuration
     parser.add_argument(
         "--config", "-c",
         type=str,
-        help="Path to configuration file (YAML or JSON)"
+        help="Path to configuration file (JSON). Works with all providers. "
+             "Example configs: config/example_config.json (general), "
+             "config/openai_config.json (API), config/mock_config.json (testing)"
     )
-    
+
     # Quick setup options
     parser.add_argument(
         "--create-config",
         type=str,
-        help="Create a default configuration file at the specified path"
+        help="Create a default configuration file at the specified path. "
+             "Creates a template JSON file that you can customize for your needs."
     )
     
     # Override options
     parser.add_argument(
         "--model-name",
         type=str,
-        help="Override model name from config"
+        help="Override model name from config. For TransformersProvider: HuggingFace model name "
+             "(e.g., 'Qwen/Qwen2.5-3B-Instruct'). For OpenAI: API model name (e.g., 'gpt-3.5-turbo'). "
+             "For MockProvider: any string (used for logging only)."
     )
-    
+
     parser.add_argument(
         "--num-stories",
         type=int,
-        help="Override number of stories to generate"
+        help="Override number of stories to generate from config. "
+             "Total stories to create in this run. Will be processed in batches."
     )
-    
+
     parser.add_argument(
         "--output-path",
         type=str,
-        help="Override output path from config"
+        help="Override output path from config. Path where generated stories will be saved "
+             "in JSONL format. Metadata will be saved to {output_path}.metadata.json"
     )
-    
+
     parser.add_argument(
         "--batch-size",
         type=int,
-        help="Override batch size from config"
+        help="Override batch size from config. Number of stories to process simultaneously. "
+             "Larger batches are more efficient but use more memory. Recommended: 8-16 for local models, "
+             "3-5 for API providers to avoid rate limits."
     )
     
     parser.add_argument(
         "--device",
         type=str,
         choices=["auto", "cuda", "cpu"],
-        help="Override device from config"
+        help="Override device from config. Only applies to TransformersProvider. "
+             "'auto': automatically detect best device, 'cuda': force GPU, 'cpu': force CPU. "
+             "Ignored for OpenAI and Mock providers."
     )
-    
+
     parser.add_argument(
         "--no-k-shot",
         action="store_true",
-        help="Disable k-shot examples"
+        help="Disable k-shot examples. When enabled, stories are generated without example "
+             "conversations for context. This may reduce quality but speeds up generation."
     )
-    
+
     parser.add_argument(
         "--no-diversity",
         action="store_true",
-        help="Disable word diversity enforcement"
+        help="Disable word diversity enforcement. When enabled, the same word combinations "
+             "may be reused across stories. Useful for testing or when you want repeated patterns."
     )
 
     parser.add_argument(
         "--mock-provider",
         action="store_true",
-        help="Use mock LLM provider for testing (no torch/transformers required)"
+        help="Use mock LLM provider for testing. Generates fake stories without requiring "
+             "torch/transformers or API keys. Perfect for testing the pipeline, configs, "
+             "and data processing without computational overhead."
     )
 
     parser.add_argument(
         "--openai-provider",
         action="store_true",
-        help="Use OpenAI-compatible API provider (requires AI_API_KEY env var)"
+        help="Use OpenAI-compatible API provider. Requires AI_API_KEY environment variable. "
+             "Works with OpenAI, Together AI, Anyscale, local servers (vLLM, text-generation-webui), "
+             "and any service implementing OpenAI's chat completions API."
     )
 
     parser.add_argument(
         "--api-base-url",
         type=str,
         default="https://api.openai.com/v1",
-        help="Base URL for OpenAI-compatible API (default: OpenAI)"
+        help="Base URL for OpenAI-compatible API. Examples: "
+             "OpenAI: https://api.openai.com/v1, "
+             "Together AI: https://api.together.xyz/v1, "
+             "Local server: http://localhost:8000/v1"
     )
 
     # Data file overrides
     parser.add_argument(
         "--vocabulary-path",
         type=str,
-        help="Override vocabulary file path from config"
+        help="Override vocabulary file path from config. JSON file containing word lists "
+             "(nouns, verbs, adjectives) used for story generation. "
+             "Default: training/synthetic_data_generation/config/vocabulary.json"
     )
 
     parser.add_argument(
         "--story-features-path",
         type=str,
-        help="Override story features file path from config"
+        help="Override story features file path from config. JSON file containing additional "
+             "story conditions (e.g., 'make sure story has dialogue'). These are randomly "
+             "selected for each story. Default: docs/story_features.json"
     )
 
     parser.add_argument(
         "--conversation-examples-path",
         type=str,
-        help="Override conversation examples file path from config"
+        help="Override conversation examples file path from config. Text file containing "
+             "example conversations for k-shot prompting. Improves story quality by providing "
+             "context. Default: training/synthetic_data_generation/config/example_conversation.txt"
     )
     
     parser.add_argument(
@@ -121,11 +176,26 @@ async def main():
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Set logging level"
+        help="Set logging level. DEBUG: detailed execution info, INFO: progress updates, "
+             "WARNING: only warnings and errors, ERROR: only errors. "
+             "Use DEBUG for troubleshooting, INFO for normal operation."
     )
     
     args = parser.parse_args()
-    
+
+    # Show help if no meaningful arguments provided
+    if len(sys.argv) == 1:
+        parser.print_help()
+        print("\nQuick start examples:")
+        print("  # Test with mock provider (no dependencies)")
+        print("  python -m training.synthetic_data_generation.main --mock-provider --num-stories 5")
+        print("  # Use OpenAI API")
+        print("  export AI_API_KEY=your_key")
+        print("  python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-3.5-turbo")
+        print("  # Use configuration file")
+        print("  python -m training.synthetic_data_generation.main --config config/example_config.json")
+        return
+
     # Handle config file creation
     if args.create_config:
         create_config_file(args.create_config)

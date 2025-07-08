@@ -556,3 +556,111 @@ The OpenAI-compatible provider works with any service that implements the OpenAI
 - **Other OpenAI-compatible services**
 
 Simply set the appropriate `--api-base-url` and `--model-name` for your service.
+
+## Command Line Parameters Reference
+
+### Configuration Parameters
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `--config`, `-c` | string | Path to JSON configuration file. Works with all providers. | `--config config/openai_config.json` |
+| `--create-config` | string | Create a default configuration template at specified path | `--create-config my_config.json` |
+
+### Provider Selection (mutually exclusive)
+
+| Parameter | Description | Requirements |
+|-----------|-------------|--------------|
+| *(default)* | TransformersProvider - Local HuggingFace models | `torch`, `transformers` |
+| `--mock-provider` | MockProvider - Testing without dependencies | None (built-in) |
+| `--openai-provider` | OpenAI-compatible API provider | `httpx`, `AI_API_KEY` env var |
+
+### Model and Generation Settings
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--model-name` | string | `Qwen/Qwen2.5-3B-Instruct` | Model identifier. HuggingFace model name for local, API model name for remote |
+| `--num-stories` | integer | `100` | Total number of stories to generate |
+| `--batch-size` | integer | `8` | Stories processed simultaneously. Higher = faster but more memory |
+| `--output-path` | string | `generated_stories.jsonl` | Output file path. Metadata saved to `{path}.metadata.json` |
+| `--device` | choice | `auto` | Device for local models: `auto`, `cuda`, `cpu` |
+
+### Data File Overrides
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--vocabulary-path` | string | `config/vocabulary.json` | JSON file with word lists (nouns, verbs, adjectives) |
+| `--story-features-path` | string | `docs/story_features.json` | JSON file with story conditions (randomly selected) |
+| `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file with k-shot examples |
+
+### API Provider Settings
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--api-base-url` | string | `https://api.openai.com/v1` | Base URL for OpenAI-compatible APIs |
+
+### Generation Control
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--no-k-shot` | flag | `False` | Disable k-shot examples (faster but lower quality) |
+| `--no-diversity` | flag | `False` | Allow repeated word combinations across stories |
+| `--log-level` | choice | `INFO` | Logging verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+### Environment Variables
+
+| Variable | Required For | Description |
+|----------|--------------|-------------|
+| `AI_API_KEY` | OpenAI provider | API key for authentication |
+
+### Parameter Priority
+
+Settings are applied in this order (later overrides earlier):
+1. Default values
+2. Configuration file settings
+3. Command line arguments
+
+### Examples by Use Case
+
+#### Quick Testing
+```bash
+# Minimal test
+python -m training.synthetic_data_generation.main --mock-provider --num-stories 5
+
+# Test with custom data
+python -m training.synthetic_data_generation.main --mock-provider \
+    --conversation-examples-path "my_examples.txt" --num-stories 10
+```
+
+#### API Usage
+```bash
+# OpenAI
+export AI_API_KEY=sk-your-key
+python -m training.synthetic_data_generation.main --openai-provider \
+    --model-name "gpt-3.5-turbo" --num-stories 50
+
+# Local API server
+export AI_API_KEY=local-key
+python -m training.synthetic_data_generation.main --openai-provider \
+    --api-base-url "http://localhost:8000/v1" --model-name "llama-7b"
+```
+
+#### Local Models
+```bash
+# Default model
+python -m training.synthetic_data_generation.main --num-stories 100
+
+# Custom model and settings
+python -m training.synthetic_data_generation.main \
+    --model-name "microsoft/DialoGPT-medium" \
+    --device cuda --batch-size 16 --num-stories 1000
+```
+
+#### Configuration Files
+```bash
+# Use config file
+python -m training.synthetic_data_generation.main --config config/openai_config.json --openai-provider
+
+# Override config settings
+python -m training.synthetic_data_generation.main --config config/example_config.json \
+    --num-stories 500 --batch-size 12
+```
