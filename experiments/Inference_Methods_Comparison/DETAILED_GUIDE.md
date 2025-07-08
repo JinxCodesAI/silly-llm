@@ -54,8 +54,9 @@ This comprehensive guide explains how to use, configure, and extend the inferenc
 #### Experiment Settings
 ```json
 {
-  "num_completions": 3,     // Total completions to generate per prompt
-  "batch_size": null,       // Batch size for batched methods (null = auto)
+  "num_completions": 3,     // Number of generations per prompt (int or array)
+  "batch_size": 4,          // GPU capacity - how many prompts to process simultaneously
+  "methods_to_test": null,  // List of methods to test (null = all methods)
   "prompts": [...]          // List of prompts to test
 }
 ```
@@ -70,40 +71,81 @@ This comprehensive guide explains how to use, configure, and extend the inferenc
 }
 ```
 
-### Understanding Prompts vs Completions vs Batch Size
+### Understanding Prompts vs Completions vs Methods vs Batch Size
 
 #### Relationship Between Parameters
 
 1. **`prompts`**: List of different prompts to test
    - Example: `["story about elephant", "story about dog"]` = 2 prompts
 
-2. **`num_completions`**: Total completions generated **per prompt**
-   - If `num_completions = 3` and you have 2 prompts, you get 6 total completions
+2. **`num_completions`**: Number of generations per prompt
+   - **As integer**: Same number for all prompts (e.g., `3` = 3 completions per prompt)
+   - **As array**: Specific per prompt (e.g., `[3, 2, 5]` = 3 for first, 2 for second, 5 for third)
+   - If array, length must equal number of prompts
 
-3. **`batch_size`**: How many completions to process simultaneously
-   - Only affects batched generation method
-   - `null` (auto): Uses `num_completions` as batch size
-   - Explicit value: Processes that many at once
+3. **`batch_size`**: GPU capacity - how many prompts to process simultaneously
+   - **Independent of `num_completions`**
+   - Determines batching strategy across all methods
+   - Example: `batch_size=4` means process 4 prompts at once
+
+4. **`methods_to_test`**: Which inference methods to run
+   - `null` or not specified: Run all methods (standard, simple, beam_search, batched, nucleus_sampling)
+   - `["standard", "batched"]`: Run only these 2 methods
+   - `["simple", "batched"]`: Run simple (one-at-a-time) and batched methods
+   - **Validation**: Invalid method names cause immediate configuration error
+   - **Available methods**: `standard`, `simple`, `beam_search`, `batched`, `nucleus_sampling`
+   - Total results = methods × total completions across all prompts
+
+#### Method Behavior
+
+- **Standard/Simple**: One generation at a time (batch_size=1 equivalent)
+- **Batched**: Uses configured `batch_size` to process multiple prompts simultaneously
+- **Beam Search**: Processes prompts one by one, respects `batch_size` for sequences per prompt
+- **Nucleus Sampling**: Same as batched but with modified sampling parameters
+
+#### Configuration Validation
+
+The script validates configuration **before execution starts**:
+
+```json
+{
+  "methods_to_test": ["batched", "invalid_method"]
+}
+```
+**Result**: `❌ Configuration Error: Invalid method(s) specified: ['invalid_method']. Valid methods are: ['batched', 'beam_search', 'nucleus_sampling', 'simple', 'standard']`
+
+**No execution occurs** - fails immediately with clear error message.
 
 #### Example Scenarios
 
-**Scenario 1: Your Original Request**
+**Scenario 1: Equal Completions Per Prompt**
 ```json
 {
   "prompts": [
     "generate short bed time story containing word elephant and cake",
     "generate short bed time story containing word dog and sausage"
   ],
-  "num_completions": 3,  // 3 completions for elephant story
-  "batch_size": null     // Auto-determined
+  "num_completions": 3,  // 3 completions for each prompt
+  "batch_size": 4        // Process 4 prompts at once
 }
 ```
 Result: 3 elephant stories + 3 dog stories = 6 total completions
+Batching: Batch 1: [elephant, elephant, elephant, dog], Batch 2: [dog, dog]
 
-**Scenario 2: Different Completion Counts**
-To get 3 elephant stories and 5 dog stories (total 8 as you mentioned), you would need to run separate experiments or modify the script to support per-prompt completion counts.
+**Scenario 2: Different Completion Counts (Your Example)**
+```json
+{
+  "prompts": ["prompt1", "prompt2", "prompt3"],
+  "num_completions": [3, 2, 3],  // Array: 3 for prompt1, 2 for prompt2, 3 for prompt3
+  "batch_size": 4
+}
+```
+Result: 3 + 2 + 3 = 8 total completions
+Batching:
+- Batch 1: [prompt1, prompt1, prompt1, prompt2] (4 items)
+- Batch 2: [prompt2, prompt3, prompt3, prompt3] (4 items)
 
-**Scenario 3: Batch Processing**
+**Scenario 3: Single Prompt, Multiple Completions**
 ```json
 {
   "num_completions": 8,
@@ -111,7 +153,8 @@ To get 3 elephant stories and 5 dog stories (total 8 as you mentioned), you woul
   "prompts": ["single prompt"]
 }
 ```
-Result: 8 completions of the same prompt, processed in 2 batches of 4
+Result: 8 completions of the same prompt
+Batching: Batch 1: [prompt, prompt, prompt, prompt], Batch 2: [prompt, prompt, prompt, prompt]
 
 ### Cache Implementation Options
 
@@ -305,5 +348,15 @@ def analyze_results(self, results):
 2. **For Memory**: quantization + offloaded cache + smaller batch sizes
 3. **For Quality**: beam search + higher max_new_tokens
 4. **For Throughput**: batched generation + larger batch sizes
+
+## 📊 Memory Measurement
+
+The script measures **peak GPU memory usage** during generation using `torch.cuda.max_memory_allocated()`. This provides more accurate memory usage measurements compared to simple before/after comparisons.
+
+**Key points:**
+- Memory is reset before each method using `torch.cuda.reset_peak_memory_stats()`
+- Measurements reflect the maximum memory used during the generation process
+- Values are reported in GB for easy comparison
+- Negative values indicate measurement errors (now fixed)
 
 This guide should help you understand and effectively use the inference comparison system!

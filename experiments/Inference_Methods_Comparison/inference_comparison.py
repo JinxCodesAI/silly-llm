@@ -17,7 +17,7 @@ import torch
 import time
 import json
 import argparse
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Union
 from dataclasses import dataclass, asdict
 from transformers import (
     AutoModelForCausalLM, 
@@ -43,9 +43,9 @@ class InferenceConfig:
     top_k: int = 50
 
     # Experiment settings
-    num_completions: int = 3
+    num_completions: Union[int, List[int]] = 3  # Number of generations per prompt (int for all, list per prompt)
     prompts: List[str] = None
-    batch_size: int = None  # Auto-determined if None, used for batched methods
+    batch_size: int = 4  # GPU capacity - how many prompts to process simultaneously
     methods_to_test: List[str] = None  # If None, test all methods
 
     # Performance settings
@@ -60,6 +60,29 @@ class InferenceConfig:
                 "generate short (up to 150 words) bed time story containing word elephant and cake",
                 "generate short (up to 150 words) bed time story containing word dog and sausage"
             ]
+
+        # Validate num_completions
+        if isinstance(self.num_completions, list):
+            if len(self.num_completions) != len(self.prompts):
+                raise ValueError(f"num_completions list length ({len(self.num_completions)}) must match prompts length ({len(self.prompts)})")
+
+        # Set default batch_size if None
+        if self.batch_size is None:
+            self.batch_size = 4
+
+        # Validate methods_to_test
+        if self.methods_to_test is not None:
+            valid_methods = {"standard", "simple", "beam_search", "batched", "nucleus_sampling"}
+            invalid_methods = set(self.methods_to_test) - valid_methods
+            if invalid_methods:
+                raise ValueError(f"Invalid method(s) specified: {sorted(invalid_methods)}. "
+                               f"Valid methods are: {sorted(valid_methods)}")
+
+            # Check for duplicates
+            if len(self.methods_to_test) != len(set(self.methods_to_test)):
+                duplicates = [method for method in set(self.methods_to_test)
+                            if self.methods_to_test.count(method) > 1]
+                raise ValueError(f"Duplicate method(s) specified: {sorted(duplicates)}")
 
 @dataclass
 class InferenceResult:
@@ -132,126 +155,198 @@ class InferenceMethodsComparator:
             self.main_model.generation_config.cache_implementation = "static"
             
         print("Models loaded successfully!")
-        
+
+    def get_completions_for_prompt(self, prompt_idx: int) -> int:
+        """Get number of completions for a specific prompt"""
+        if isinstance(self.config.num_completions, list):
+            return self.config.num_completions[prompt_idx]
+        return self.config.num_completions
+
+    def get_total_completions(self) -> int:
+        """Get total number of completions across all prompts"""
+        if isinstance(self.config.num_completions, list):
+            return sum(self.config.num_completions)
+        return self.config.num_completions * len(self.config.prompts)
+
+    def create_generation_batches(self) -> List[Tuple[str, int, int]]:
+        """Create batches for generation: (prompt, prompt_idx, completion_idx)"""
+        batches = []
+        current_batch = []
+
+        # Create all (prompt, prompt_idx, completion_idx) tuples
+        all_generations = []
+        for prompt_idx, prompt in enumerate(self.config.prompts):
+            num_comps = self.get_completions_for_prompt(prompt_idx)
+            for comp_idx in range(num_comps):
+                all_generations.append((prompt, prompt_idx, comp_idx))
+
+        # Group into batches
+        for i in range(0, len(all_generations), self.config.batch_size):
+            batch = all_generations[i:i + self.config.batch_size]
+            batches.append(batch)
+
+        return batches
+
     def get_memory_usage(self) -> float:
         """Get current GPU memory usage in GB"""
         if torch.cuda.is_available():
-            return torch.cuda.memory_allocated() / (1024**3)
+            # Use max_memory_allocated to get peak memory usage during generation
+            return torch.cuda.max_memory_allocated() / (1024**3)
         return psutil.virtual_memory().used / (1024**3)
     
     def clear_memory(self):
-        """Clear GPU memory cache"""
+        """Clear GPU memory cache and reset memory tracking"""
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()  # Reset peak memory tracking
         gc.collect()
         
     def prepare_input(self, prompt: str) -> Dict[str, torch.Tensor]:
         """Prepare input for generation with chat template"""
         messages = [{"role": "user", "content": prompt}]
-        
+
         text = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True,
             enable_thinking=False  # Always use non-thinking mode as requested
         )
-        
+
         return self.tokenizer(text, return_tensors="pt").to(self.main_model.device)
     
-    def method_standard_generation(self, prompt: str, completion_idx: int) -> InferenceResult:
-        """Standard autoregressive generation"""
-        self.clear_memory()
-        inputs = self.prepare_input(prompt)
 
-        start_time = time.time()
-        start_memory = self.get_memory_usage()
-
-        generation_kwargs = {
-            "max_new_tokens": self.config.max_new_tokens,
-            "temperature": self.config.temperature,
-            "top_p": self.config.top_p,
-            "do_sample": True,
-            "pad_token_id": self.tokenizer.eos_token_id,
-            "use_cache": True
-        }
-
-        # Add speculative decoding if enabled
-        if self.config.use_speculative_decoding and self.assistant_model is not None:
-            generation_kwargs["assistant_model"] = self.assistant_model
-
-        with torch.no_grad():
-            outputs = self.main_model.generate(**inputs, **generation_kwargs)
-        
-        generation_time = time.time() - start_time
-        memory_used = self.get_memory_usage() - start_memory
-        
-        # Extract generated text
-        input_length = inputs["input_ids"].shape[1]
-        generated_tokens = outputs[0][input_length:]
-        generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-        
-        tokens_generated = len(generated_tokens)
-        tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0
-        
-        return InferenceResult(
-            method="standard",
-            prompt_index=0,  # Will be set by caller
-            completion_index=completion_idx,
-            generated_text=generated_text,
-            generation_time=generation_time,
-            memory_used_gb=memory_used,
-            tokens_generated=tokens_generated,
-            tokens_per_second=tokens_per_second,
-            prompt=prompt
-        )
     
 
 
-    def method_beam_search(self, prompt: str, num_sequences: int = 3) -> List[InferenceResult]:
-        """Beam search with multiple return sequences"""
-        self.clear_memory()
-        inputs = self.prepare_input(prompt)
+    def method_beam_search(self, prompt: str, prompt_idx: int, num_sequences: int) -> List[InferenceResult]:
+        """Beam search with multiple return sequences for a single prompt"""
+        results = []
 
-        start_time = time.time()
-        start_memory = self.get_memory_usage()
+        # If num_sequences > batch_size, we need multiple beam search calls
+        remaining_sequences = num_sequences
+        completion_idx = 0
 
-        generation_kwargs = {
-            "max_new_tokens": self.config.max_new_tokens,
-            "num_beams": num_sequences,
-            "num_return_sequences": num_sequences,
-            "early_stopping": True,
-            "pad_token_id": self.tokenizer.eos_token_id,
-            "use_cache": True
-        }
+        while remaining_sequences > 0:
+            current_sequences = min(remaining_sequences, self.config.batch_size)
 
-        # Add speculative decoding if enabled
-        if self.config.use_speculative_decoding and self.assistant_model is not None:
-            generation_kwargs["assistant_model"] = self.assistant_model
+            # Only clear memory at the start of the first iteration
+            if remaining_sequences == num_sequences:
+                self.clear_memory()
 
-        with torch.no_grad():
-            outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            inputs = self.prepare_input(prompt)
 
-        generation_time = time.time() - start_time
-        memory_used = self.get_memory_usage() - start_memory
+            start_time = time.time()
+
+            generation_kwargs = {
+                "max_new_tokens": self.config.max_new_tokens,
+                "num_beams": current_sequences,
+                "num_return_sequences": current_sequences,
+                "early_stopping": True,                
+                "do_sample": True,
+                "temperature": self.config.temperature,
+                "top_p": self.config.top_p,
+                "top_k": self.config.top_k,
+                "pad_token_id": self.tokenizer.eos_token_id,
+                "use_cache": True
+            }
+
+            # Add speculative decoding if enabled
+            if self.config.use_speculative_decoding and self.assistant_model is not None:
+                generation_kwargs["assistant_model"] = self.assistant_model
+
+            try:
+                with torch.no_grad():
+                    outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            except Exception as e:
+                print(f"❌ Error during beam search generation: {e}")
+                raise
+
+            generation_time = time.time() - start_time
+            memory_used = self.get_memory_usage()
+
+            input_length = inputs["input_ids"].shape[1]
+
+            for i, output in enumerate(outputs):
+                generated_tokens = output[input_length:]
+                generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+                tokens_generated = len(generated_tokens)
+                per_sequence_time = generation_time / current_sequences if generation_time > 0 else 0
+                tokens_per_second = tokens_generated / per_sequence_time if per_sequence_time > 0 else 0
+
+                results.append(InferenceResult(
+                    method="beam_search",
+                    prompt_index=prompt_idx,
+                    completion_index=completion_idx,
+                    generated_text=generated_text,
+                    generation_time=per_sequence_time,
+                    memory_used_gb=memory_used,  # Will be updated by run_experiment with method-wide memory
+                    tokens_generated=tokens_generated,
+                    tokens_per_second=tokens_per_second,
+                    prompt=prompt
+                ))
+
+                completion_idx += 1
+
+            remaining_sequences -= current_sequences
+
+        return results
+
+    def method_standard_generation(self) -> List[InferenceResult]:
+        """Standard generation (one at a time, no memory reset between items)"""
+        # Get all generation tasks
+        all_generations = []
+        for prompt_idx, prompt in enumerate(self.config.prompts):
+            num_comps = self.get_completions_for_prompt(prompt_idx)
+            for comp_idx in range(num_comps):
+                all_generations.append((prompt, prompt_idx, comp_idx))
 
         results = []
-        input_length = inputs["input_ids"].shape[1]
 
-        for i, output in enumerate(outputs):
-            generated_tokens = output[input_length:]
+        # Process each generation individually (but don't reset memory between them)
+        for prompt, prompt_idx, completion_idx in all_generations:
+            # Prepare single input
+            inputs = self.prepare_input(prompt)
+
+            start_time = time.time()
+
+            generation_kwargs = {
+                "max_new_tokens": self.config.max_new_tokens,
+                "temperature": self.config.temperature,
+                "top_p": self.config.top_p,
+                "do_sample": True,
+                "pad_token_id": self.tokenizer.eos_token_id,
+                "use_cache": True
+            }
+
+            # Add speculative decoding if enabled
+            if self.config.use_speculative_decoding and self.assistant_model is not None:
+                generation_kwargs["assistant_model"] = self.assistant_model
+
+            try:
+                with torch.no_grad():
+                    outputs = self.main_model.generate(**inputs, **generation_kwargs)
+            except Exception as e:
+                print(f"❌ Error during generation: {e}")
+                raise
+
+            generation_time = time.time() - start_time
+
+            # Extract generated text
+            input_length = inputs["input_ids"].shape[1]
+            generated_tokens = outputs[0][input_length:]
             generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
             tokens_generated = len(generated_tokens)
-            # Divide time by number of sequences for per-sequence timing
-            tokens_per_second = tokens_generated / (generation_time / num_sequences) if generation_time > 0 else 0
+            tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0
 
             results.append(InferenceResult(
-                method="beam_search",
-                prompt_index=0,  # Will be set by caller
-                completion_index=i,
+                method="standard",
+                prompt_index=prompt_idx,
+                completion_index=completion_idx,
                 generated_text=generated_text,
-                generation_time=generation_time / num_sequences,
-                memory_used_gb=memory_used / num_sequences,
+                generation_time=generation_time,
+                memory_used_gb=0.0,  # Will be updated by run_experiment with method-wide memory
                 tokens_generated=tokens_generated,
                 tokens_per_second=tokens_per_second,
                 prompt=prompt
@@ -259,27 +354,21 @@ class InferenceMethodsComparator:
 
         return results
 
-    def method_batched_generation(self, prompt: str, batch_size: int = None) -> List[InferenceResult]:
-        """Batched generation (repeating same prompt)"""
-        self.clear_memory()
+    def method_batched_generation(self, batch: List[Tuple[str, int, int]]) -> List[InferenceResult]:
+        """Batched generation with mixed prompts"""
+        # Memory is managed by run_experiment method
 
-        # Use configured batch_size or default to num_completions
-        if batch_size is None:
-            batch_size = self.config.batch_size or self.config.num_completions
-
-        # Create batch by repeating the same prompt
-        prompts_batch = [prompt] * batch_size
+        # Extract prompts from batch
+        prompts_batch = [item[0] for item in batch]
 
         # Prepare batch inputs
         messages_batch = [[{"role": "user", "content": p}] for p in prompts_batch]
-        texts_batch = [
-            self.tokenizer.apply_chat_template(
-                messages,
+        texts_batch = self.tokenizer.apply_chat_template(
+                messages_batch,
                 tokenize=False,
                 add_generation_prompt=True,
                 enable_thinking=False
-            ) for messages in messages_batch
-        ]
+            )
 
         inputs = self.tokenizer(
             texts_batch,
@@ -289,7 +378,6 @@ class InferenceMethodsComparator:
         ).to(self.main_model.device)
 
         start_time = time.time()
-        start_memory = self.get_memory_usage()
 
         generation_kwargs = {
             "max_new_tokens": self.config.max_new_tokens,
@@ -304,30 +392,36 @@ class InferenceMethodsComparator:
         if self.config.use_speculative_decoding and self.assistant_model is not None:
             generation_kwargs["assistant_model"] = self.assistant_model
 
-        with torch.no_grad():
-            outputs = self.main_model.generate(**inputs, **generation_kwargs)
+        try:
+            with torch.no_grad():
+                outputs = self.main_model.generate(**inputs, **generation_kwargs)
+        except Exception as e:
+            print(f"❌ Error during batched generation: {e}")
+            raise
 
         generation_time = time.time() - start_time
-        memory_used = self.get_memory_usage() - start_memory
+        memory_used = self.get_memory_usage()  # Get peak memory used during generation
 
         results = []
 
-        for i, output in enumerate(outputs):
+        for i, (output, (prompt, prompt_idx, completion_idx)) in enumerate(zip(outputs, batch)):
             # Find input length for this sequence
             input_length = inputs["input_ids"][i].ne(self.tokenizer.pad_token_id).sum().item()
             generated_tokens = output[input_length:]
             generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
             tokens_generated = len(generated_tokens)
-            tokens_per_second = tokens_generated / (generation_time / batch_size) if generation_time > 0 else 0
+            # Calculate per-item timing
+            per_item_time = generation_time / len(batch) if generation_time > 0 else 0
+            tokens_per_second = tokens_generated / per_item_time if per_item_time > 0 else 0
 
             results.append(InferenceResult(
                 method="batched",
-                prompt_index=0,  # Will be set by caller
-                completion_index=i,
+                prompt_index=prompt_idx,
+                completion_index=completion_idx,
                 generated_text=generated_text,
-                generation_time=generation_time / batch_size,
-                memory_used_gb=memory_used / batch_size,
+                generation_time=per_item_time,
+                memory_used_gb=memory_used,  # Will be updated by run_experiment with method-wide memory
                 tokens_generated=tokens_generated,
                 tokens_per_second=tokens_per_second,
                 prompt=prompt
@@ -335,106 +429,97 @@ class InferenceMethodsComparator:
 
         return results
 
-    def method_nucleus_sampling(self, prompt: str, completion_idx: int) -> InferenceResult:
-        """Nucleus (top-p) sampling"""
-        self.clear_memory()
-        inputs = self.prepare_input(prompt)
+    def method_nucleus_sampling(self) -> List[InferenceResult]:
+        """Nucleus (top-p) sampling using batched generation with modified parameters"""
+        # Create batches
+        batches = self.create_generation_batches()
+        results = []
 
-        start_time = time.time()
-        start_memory = self.get_memory_usage()
+        for batch in batches:
+            # Temporarily modify generation parameters for nucleus sampling
+            original_temp = self.config.temperature
+            original_top_p = self.config.top_p
 
-        generation_kwargs = {
-            "max_new_tokens": self.config.max_new_tokens,
-            "do_sample": True,
-            "top_p": 0.9,
-            "temperature": 0.8,
-            "pad_token_id": self.tokenizer.eos_token_id,
-            "use_cache": True
-        }
+            self.config.temperature = 0.8
+            self.config.top_p = 0.9
 
-        # Add speculative decoding if enabled
-        if self.config.use_speculative_decoding and self.assistant_model is not None:
-            generation_kwargs["assistant_model"] = self.assistant_model
+            try:
+                batch_results = self.method_batched_generation(batch)
+                # Update method name
+                for result in batch_results:
+                    result.method = "nucleus_sampling"
+                results.extend(batch_results)
+            finally:
+                # Restore original parameters
+                self.config.temperature = original_temp
+                self.config.top_p = original_top_p
 
-        with torch.no_grad():
-            outputs = self.main_model.generate(**inputs, **generation_kwargs)
+        return results
 
-        generation_time = time.time() - start_time
-        memory_used = self.get_memory_usage() - start_memory
-
-        # Extract generated text
-        input_length = inputs["input_ids"].shape[1]
-        generated_tokens = outputs[0][input_length:]
-        generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-
-        tokens_generated = len(generated_tokens)
-        tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0
-
-        return InferenceResult(
-            method="nucleus_sampling",
-            prompt_index=0,  # Will be set by caller
-            completion_index=completion_idx,
-            generated_text=generated_text,
-            generation_time=generation_time,
-            memory_used_gb=memory_used,
-            tokens_generated=tokens_generated,
-            tokens_per_second=tokens_per_second,
-            prompt=prompt
-        )
-
-    def run_experiment(self, method: str, prompt: str, prompt_idx: int, num_completions: int) -> List[InferenceResult]:
-        """Run experiment for a specific method and prompt"""
+    def run_experiment(self, method: str) -> List[InferenceResult]:
+        """Run experiment for a specific method across all prompts"""
         speculative_suffix = " + speculative" if self.config.use_speculative_decoding else ""
-        print(f"\n🔄 Running {method}{speculative_suffix} for prompt {prompt_idx + 1}: '{prompt[:50]}...'")
+        print(f"\n🔄 Running {method}{speculative_suffix}...")
+
+        # Start method-wide timing and memory tracking
+        method_start_time = time.time()
+        self.clear_memory()  # Reset memory tracking for this method
 
         results = []
 
-        if method == "standard":
-            for i in range(num_completions):
-                print(f"  Completion {i + 1}/{num_completions}...")
-                result = self.method_standard_generation(prompt, i)
-                result.prompt_index = prompt_idx
-                # Update method name to reflect speculative decoding usage
-                if self.config.use_speculative_decoding:
-                    result.method = "standard_speculative"
-                results.append(result)
+        if method == "standard" or method == "simple":
+            results = self.method_standard_generation()
+            # Update method name to match config
+            for result in results:
+                result.method = method
 
         elif method == "beam_search":
-            print(f"  Generating {num_completions} sequences with beam search...")
-            beam_results = self.method_beam_search(prompt, num_completions)
-            for result in beam_results:
-                result.prompt_index = prompt_idx
-                # Update method name to reflect speculative decoding usage
-                if self.config.use_speculative_decoding:
-                    result.method = "beam_search_speculative"
-            results.extend(beam_results)
+            # Beam search processes prompts one by one
+            for prompt_idx, prompt in enumerate(self.config.prompts):
+                num_completions = self.get_completions_for_prompt(prompt_idx)
+                print(f"  Beam search for prompt {prompt_idx + 1}: {num_completions} sequences")
+                beam_results = self.method_beam_search(prompt, prompt_idx, num_completions)
+                results.extend(beam_results)
 
         elif method == "batched":
-            print(f"  Generating {num_completions} completions in batch...")
-            batch_results = self.method_batched_generation(prompt, num_completions)
-            for result in batch_results:
-                result.prompt_index = prompt_idx
-                # Update method name to reflect speculative decoding usage
-                if self.config.use_speculative_decoding:
-                    result.method = "batched_speculative"
-            results.extend(batch_results)
+            # Process all batches
+            batches = self.create_generation_batches()
+            results = []
+            for batch_idx, batch in enumerate(batches):
+                print(f"  Processing batch {batch_idx + 1}/{len(batches)} ({len(batch)} items)")
+                batch_results = self.method_batched_generation(batch)
+                results.extend(batch_results)
 
         elif method == "nucleus_sampling":
-            for i in range(num_completions):
-                print(f"  Completion {i + 1}/{num_completions}...")
-                result = self.method_nucleus_sampling(prompt, i)
-                result.prompt_index = prompt_idx
-                # Update method name to reflect speculative decoding usage
-                if self.config.use_speculative_decoding:
-                    result.method = "nucleus_sampling_speculative"
-                results.append(result)
+            results = self.method_nucleus_sampling()
+
+        # Calculate method-wide metrics
+        method_total_time = time.time() - method_start_time
+        method_peak_memory = self.get_memory_usage()
+
+        # Update all results with method-wide memory measurement
+        for result in results:
+            result.memory_used_gb = method_peak_memory
+
+        print(f"  ✅ {method} completed in {method_total_time:.2f}s, peak memory: {method_peak_memory:.3f}GB")
+
+        # Update method names for speculative decoding
+        if self.config.use_speculative_decoding:
+            for result in results:
+                result.method = f"{result.method}_speculative"
 
         return results
 
     def run_all_experiments(self) -> Dict[str, List[InferenceResult]]:
         """Run all experiments for all methods and prompts"""
-        all_methods = ["standard", "beam_search", "batched", "nucleus_sampling"]
-        methods = self.config.methods_to_test or all_methods
+        all_methods = ["standard", "simple", "beam_search", "batched", "nucleus_sampling"]
+
+        # If methods_to_test is explicitly set (not None), use it; otherwise use all methods
+        if self.config.methods_to_test is not None:
+            methods = self.config.methods_to_test
+        else:
+            methods = all_methods
+
         all_results = {method: [] for method in methods}
 
         print(f"\n🚀 Starting inference comparison experiments...")
@@ -443,21 +528,26 @@ class InferenceMethodsComparator:
         print(f"  - Assistant model: {self.config.assistant_model}")
         print(f"  - Number of prompts: {len(self.config.prompts)}")
         print(f"  - Completions per prompt: {self.config.num_completions}")
-        print(f"  - Batch size: {self.config.batch_size or 'auto'}")
+        print(f"  - Batch size: {self.config.batch_size}")
         print(f"  - Max new tokens: {self.config.max_new_tokens}")
         print(f"  - Speculative decoding: {self.config.use_speculative_decoding}")
         print(f"  - Cache implementation: {self.config.cache_implementation}")
         print(f"  - Quantization: {self.config.use_quantization}")
+        print(f"  - Methods to test: {methods}")
+
+        # Calculate expected total results
+        total_expected = len(methods) * self.get_total_completions()
+        print(f"  - Expected total results: {total_expected}")
+        print(f"    ({len(methods)} methods × {self.get_total_completions()} total completions)")
 
         for method in methods:
             print(f"\n{'='*60}")
             print(f"🔬 Testing method: {method.upper()}")
             print(f"{'='*60}")
 
-            for prompt_idx, prompt in enumerate(self.config.prompts):
-                results = self.run_experiment(method, prompt, prompt_idx, self.config.num_completions)
-                all_results[method].extend(results)
-                self.results.extend(results)
+            results = self.run_experiment(method)
+            all_results[method].extend(results)
+            self.results.extend(results)
 
         return all_results
 
@@ -615,16 +705,31 @@ def main():
     parser.add_argument("--interactive", action="store_true", help="Interactive configuration")
     parser.add_argument("--quick", action="store_true", help="Quick test with minimal settings")
     parser.add_argument("--output", type=str, help="Output file name")
-    parser.add_argument("--methods", nargs="+", choices=["standard", "beam_search", "batched", "nucleus_sampling"],
+    parser.add_argument("--methods", nargs="+", choices=["standard", "simple", "beam_search", "batched", "nucleus_sampling"],
                        help="Specific methods to test")
 
     args = parser.parse_args()
 
     # Load or create configuration
     if args.config:
-        with open(args.config, 'r') as f:
-            config_dict = json.load(f)
-        config = InferenceConfig(**config_dict)
+        try:
+            with open(args.config, 'r') as f:
+                config_dict = json.load(f)
+
+            # Handle null values properly - convert None to empty list for methods_to_test
+            if config_dict.get('methods_to_test') is None:
+                config_dict['methods_to_test'] = None  # Keep as None to indicate "use default"
+
+            config = InferenceConfig(**config_dict)
+        except FileNotFoundError:
+            print(f"❌ Error: Configuration file '{args.config}' not found.")
+            return
+        except json.JSONDecodeError as e:
+            print(f"❌ Error: Invalid JSON in configuration file '{args.config}': {e}")
+            return
+        except ValueError as e:
+            print(f"❌ Configuration Error: {e}")
+            return
     elif args.interactive:
         config = interactive_config()
     elif args.quick:
@@ -644,7 +749,18 @@ def main():
 
     # Override methods if specified
     if args.methods:
-        config.methods_to_test = args.methods
+        try:
+            # Validate methods before setting
+            valid_methods = {"standard", "simple", "beam_search", "batched", "nucleus_sampling"}
+            invalid_methods = set(args.methods) - valid_methods
+            if invalid_methods:
+                print(f"❌ Error: Invalid method(s) specified: {sorted(invalid_methods)}")
+                print(f"Valid methods are: {sorted(valid_methods)}")
+                return
+            config.methods_to_test = args.methods
+        except Exception as e:
+            print(f"❌ Error setting methods: {e}")
+            return
 
     print(f"\n🎯 Final Configuration:")
     print(f"  Main model: {config.main_model}")
