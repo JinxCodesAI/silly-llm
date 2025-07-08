@@ -10,30 +10,64 @@ This directory contains a comprehensive pipeline for generating synthetic bedtim
 - **Word diversity enforcement** to ensure varied vocabulary usage
 - **Automatic validation** of generated stories
 - **Configurable story features** for different narrative elements
+- **Mock provider for testing** without requiring torch/transformers
+- **Modular architecture** with proper separation of concerns
+- **JSON configuration** for all settings
 - **Comprehensive logging and statistics**
+
+## Project Structure
+
+```
+training/synthetic_data_generation/
+├── main.py                    # Main entry point
+├── src/                       # Core implementation
+│   ├── config.py             # Configuration management
+│   ├── template_manager.py   # Template handling
+│   ├── prompt_generator.py   # Prompt generation with k-shot
+│   ├── batch_processor.py    # Efficient batch processing
+│   └── story_generator.py    # Main orchestrator
+├── config/                    # Configuration files and data
+│   ├── vocabulary.json       # Word vocabulary
+│   ├── example_conversation.txt  # K-shot examples
+│   ├── default_config.json   # Default configuration
+│   └── example_config.json   # Example configuration
+├── examples/                  # Example scripts and demos
+│   ├── demo.py              # Basic demo
+│   ├── k_shot_demo.py       # K-shot prompting demo
+│   └── test_mock_provider.py # Mock provider test
+└── tests/                     # Test files
+    └── test_pipeline.py      # Pipeline tests
+```
 
 ## Quick Start
 
-1. **Install dependencies** (if not already installed):
+### Option 1: With Mock Provider (No Dependencies)
+```bash
+# Test without installing torch/transformers
+python -m training.synthetic_data_generation.main --mock-provider --num-stories 5
+```
+
+### Option 2: With Real Models
+1. **Install dependencies**:
    ```bash
-   pip install torch transformers pydantic pyyaml
+   pip install torch transformers pydantic
    ```
 
 2. **Create a configuration file**:
    ```bash
-   python -m training.synthetic_data_generation.main --create-config my_config.yaml
+   python -m training.synthetic_data_generation.main --create-config my_config.json
    ```
 
 3. **Edit the configuration** to match your setup (model, paths, etc.)
 
 4. **Generate stories**:
    ```bash
-   python -m training.synthetic_data_generation.main --config my_config.yaml
+   python -m training.synthetic_data_generation.main --config my_config.json
    ```
 
 ## Configuration
 
-The system uses YAML configuration files. See `example_config.yaml` for a complete example.
+The system uses JSON configuration files. See `config/example_config.json` for a complete example.
 
 ### Key Configuration Options
 
@@ -102,6 +136,9 @@ python -m training.synthetic_data_generation.main --no-diversity
 
 # Use specific device
 python -m training.synthetic_data_generation.main --device cuda
+
+# Use mock provider for testing
+python -m training.synthetic_data_generation.main --mock-provider
 
 # Increase logging verbosity
 python -m training.synthetic_data_generation.main --log-level DEBUG

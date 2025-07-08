@@ -12,8 +12,8 @@ sys.path.insert(0, str(workspace_root))
 
 from training.common.utils import setup_logging, load_vocabulary
 from training.common.data_models import GenerationConfig
-from training.synthetic_data_generation.template_manager import TemplateManager
-from training.synthetic_data_generation.prompt_generator import PromptGenerator
+from training.synthetic_data_generation.src.template_manager import TemplateManager
+from training.synthetic_data_generation.src.prompt_generator import PromptGenerator
 
 
 async def test_components():
@@ -25,7 +25,7 @@ async def test_components():
     
     # Test 1: Load vocabulary
     try:
-        vocab_path = "training/synthetic_data_generation/vocabulary.json"
+        vocab_path = "training/synthetic_data_generation/config/vocabulary.json"
         vocabulary = load_vocabulary(vocab_path)
         logger.info(f"✓ Vocabulary loaded: {len(vocabulary.nouns)} nouns, "
                    f"{len(vocabulary.verbs)} verbs, {len(vocabulary.adjectives)} adjectives")
@@ -58,7 +58,7 @@ async def test_components():
     
     # Test 3: Prompt Generator
     try:
-        examples_path = "training/synthetic_data_generation/example_conversation.txt"
+        examples_path = "training/synthetic_data_generation/config/example_conversation.txt"
         prompt_generator = PromptGenerator(
             vocabulary=vocabulary,
             template_manager=template_manager,

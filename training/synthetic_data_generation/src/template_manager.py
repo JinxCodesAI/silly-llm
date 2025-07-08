@@ -4,8 +4,8 @@ import random
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from ..common.data_models import StoryPrompt, KShotExample
-from ..common.utils import load_story_features
+from ...common.data_models import StoryPrompt, KShotExample
+from ...common.utils import load_story_features
 
 
 class TemplateManager:

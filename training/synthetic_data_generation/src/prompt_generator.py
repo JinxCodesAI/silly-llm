@@ -4,8 +4,8 @@ import random
 from typing import List, Dict, Any, Optional
 import logging
 
-from ..common.data_models import Vocabulary, StoryPrompt, ConversationExample, KShotExample
-from ..common.utils import parse_conversation_examples
+from ...common.data_models import Vocabulary, StoryPrompt, ConversationExample, KShotExample
+from ...common.utils import parse_conversation_examples
 from .template_manager import TemplateManager
 
 logger = logging.getLogger(__name__)

@@ -9,8 +9,8 @@ workspace_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(workspace_root))
 
 from training.common.utils import setup_logging, load_vocabulary
-from training.synthetic_data_generation.template_manager import TemplateManager
-from training.synthetic_data_generation.prompt_generator import PromptGenerator
+from training.synthetic_data_generation.src.template_manager import TemplateManager
+from training.synthetic_data_generation.src.prompt_generator import PromptGenerator
 
 
 def demo_k_shot_prompting():
@@ -22,7 +22,7 @@ def demo_k_shot_prompting():
     setup_logging("INFO")
     
     # Load components
-    vocabulary = load_vocabulary("training/synthetic_data_generation/vocabulary.json")
+    vocabulary = load_vocabulary("training/synthetic_data_generation/config/vocabulary.json")
     template_manager = TemplateManager(story_features_path="docs/story_features.json")
     
     # Test different k-shot configurations
@@ -36,7 +36,7 @@ def demo_k_shot_prompting():
         prompt_generator = PromptGenerator(
             vocabulary=vocabulary,
             template_manager=template_manager,
-            conversation_examples_path="training/synthetic_data_generation/example_conversation.txt",
+            conversation_examples_path="training/synthetic_data_generation/config/example_conversation.txt",
             k_shot_count=k_shot_count
         )
         
@@ -111,7 +111,7 @@ def show_conversation_examples():
     
     from training.common.utils import parse_conversation_examples
     
-    examples = parse_conversation_examples("training/synthetic_data_generation/example_conversation.txt")
+    examples = parse_conversation_examples("training/synthetic_data_generation/config/example_conversation.txt")
     
     print(f"\nFound {len(examples)} conversation examples:")
     

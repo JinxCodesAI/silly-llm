@@ -11,8 +11,8 @@ sys.path.insert(0, str(workspace_root))
 
 from training.common.utils import setup_logging, load_vocabulary
 from training.common.data_models import GenerationConfig
-from training.synthetic_data_generation.template_manager import TemplateManager
-from training.synthetic_data_generation.prompt_generator import PromptGenerator
+from training.synthetic_data_generation.src.template_manager import TemplateManager
+from training.synthetic_data_generation.src.prompt_generator import PromptGenerator
 
 
 def demo_prompt_generation():
@@ -25,7 +25,7 @@ def demo_prompt_generation():
     
     # Load vocabulary
     print("\n1. Loading vocabulary...")
-    vocabulary = load_vocabulary("training/synthetic_data_generation/vocabulary.json")
+    vocabulary = load_vocabulary("training/synthetic_data_generation/config/vocabulary.json")
     print(f"   Loaded: {len(vocabulary.nouns)} nouns, {len(vocabulary.verbs)} verbs, {len(vocabulary.adjectives)} adjectives")
     
     # Initialize template manager
@@ -41,7 +41,7 @@ def demo_prompt_generation():
     prompt_generator = PromptGenerator(
         vocabulary=vocabulary,
         template_manager=template_manager,
-        conversation_examples_path="training/synthetic_data_generation/example_conversation.txt",
+        conversation_examples_path="training/synthetic_data_generation/config/example_conversation.txt",
         k_shot_count=2
     )
     
@@ -106,7 +106,7 @@ def demo_template_variations():
     print("Template Variations Demo")
     print("=" * 60)
     
-    vocabulary = load_vocabulary("training/synthetic_data_generation/vocabulary.json")
+    vocabulary = load_vocabulary("training/synthetic_data_generation/config/vocabulary.json")
     template_manager = TemplateManager(story_features_path="docs/story_features.json")
     
     print("\nGenerating 10 different word combinations and conditions:")

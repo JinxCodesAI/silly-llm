@@ -6,12 +6,12 @@ import asyncio
 from typing import List, Dict, Any, Optional
 import logging
 
-from ..common.data_models import (
-    StoryPrompt, GeneratedStory, GenerationConfig, 
+from ...common.data_models import (
+    StoryPrompt, GeneratedStory, GenerationConfig,
     GenerationResult, ValidationResult
 )
-from ..common.llm_providers import TransformersProvider
-from ..common.utils import validate_story, clean_generated_text, count_words
+from ...common.llm_providers import LLMProvider
+from ...common.utils import validate_story, clean_generated_text, count_words
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 class BatchProcessor:
     """Processes batches of prompts efficiently using transformers."""
     
-    def __init__(self, 
-                 llm_provider: TransformersProvider,
+    def __init__(self,
+                 llm_provider: LLMProvider,
                  generation_config: GenerationConfig,
                  validate_stories: bool = True,
                  min_words: int = 50,
@@ -28,7 +28,7 @@ class BatchProcessor:
         """Initialize batch processor.
         
         Args:
-            llm_provider: TransformersProvider instance
+            llm_provider: LLMProvider instance
             generation_config: Configuration for generation
             validate_stories: Whether to validate generated stories
             min_words: Minimum words for validation
@@ -62,7 +62,7 @@ class BatchProcessor:
         # Prepare messages for chat template
         messages_batch = []
         for prompt in prompts:
-            if prompt.k_shot_examples:
+            if prompt.k_shot_examples and hasattr(self.llm_provider, 'tokenizer') and self.llm_provider.tokenizer:
                 # Convert k-shot examples to message format
                 messages = []
                 for example in prompt.k_shot_examples:
@@ -70,16 +70,21 @@ class BatchProcessor:
                 # Add the actual prompt
                 messages.append({"role": "user", "content": prompt.full_prompt})
 
-                # Apply chat template
-                formatted_text = self.llm_provider.tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                    enable_thinking=False
-                )
-                messages_batch.append(formatted_text)
+                # Apply chat template if available
+                try:
+                    formatted_text = self.llm_provider.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        enable_thinking=False
+                    )
+                    messages_batch.append(formatted_text)
+                except Exception:
+                    # Fallback to simple concatenation
+                    formatted_text = self._format_messages_simple(messages)
+                    messages_batch.append(formatted_text)
             else:
-                # No k-shot examples, use prompt directly
+                # No k-shot examples or no tokenizer, use prompt directly
                 messages_batch.append(prompt.full_prompt)
         
         # Record start time and memory
@@ -139,8 +144,20 @@ class BatchProcessor:
         except Exception as e:
             logger.error(f"Batch processing failed: {e}")
             raise
-    
-    def _create_story_from_generation(self, 
+
+    def _format_messages_simple(self, messages: List[Dict[str, str]]) -> str:
+        """Simple fallback message formatting when chat template is not available."""
+        formatted_parts = []
+        for message in messages:
+            role = message['role']
+            content = message['content']
+            if role == "user":
+                formatted_parts.append(f"User: {content}")
+            elif role == "assistant":
+                formatted_parts.append(f"Assistant: {content}")
+        return "\n\n".join(formatted_parts)
+
+    def _create_story_from_generation(self,
                                     prompt: StoryPrompt,
                                     generated_text: str,
                                     generation_time: float,
@@ -166,7 +183,18 @@ class BatchProcessor:
             
             # Count words and tokens
             word_count = count_words(cleaned_text)
-            tokens_generated = len(self.llm_provider.tokenizer.encode(cleaned_text))
+
+            # Count tokens if tokenizer is available, otherwise estimate
+            if hasattr(self.llm_provider, 'tokenizer') and self.llm_provider.tokenizer:
+                try:
+                    tokens_generated = len(self.llm_provider.tokenizer.encode(cleaned_text))
+                except Exception:
+                    # Fallback estimation: roughly 4 characters per token
+                    tokens_generated = len(cleaned_text) // 4
+            else:
+                # Fallback estimation: roughly 4 characters per token
+                tokens_generated = len(cleaned_text) // 4
+
             tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0.0
             
             # Validate story if enabled

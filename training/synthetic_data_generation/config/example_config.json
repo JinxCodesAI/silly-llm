@@ -1,0 +1,37 @@
+{
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "device": "auto",
+  "generation": {
+    "batch_size": 8,
+    "max_new_tokens": 512,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.1,
+    "use_cache": true
+  },
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "conversation_examples_path": "training/synthetic_data_generation/config/example_conversation.txt"
+  },
+  "generation_settings": {
+    "num_stories": 100,
+    "k_shot_count": 2,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "generated_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 50
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 50,
+    "max_words": 300
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}

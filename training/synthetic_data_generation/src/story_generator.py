@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
 
-from ..common.data_models import (
+from ...common.data_models import (
     Vocabulary, GenerationConfig, GeneratedStory, GenerationResult
 )
-from ..common.llm_providers import TransformersProvider
-from ..common.utils import load_vocabulary, save_stories_jsonl
+from ...common.llm_providers import TransformersProvider, MockLLMProvider, LLMProvider
+from ...common.utils import load_vocabulary, save_stories_jsonl
 from .template_manager import TemplateManager
 from .prompt_generator import PromptGenerator
 from .batch_processor import BatchProcessor
@@ -28,7 +28,8 @@ class StoryGenerator:
                  conversation_examples_path: Optional[str] = None,
                  generation_config: Optional[GenerationConfig] = None,
                  k_shot_count: int = 2,
-                 device: str = "auto"):
+                 device: str = "auto",
+                 use_mock_provider: bool = False):
         """Initialize story generator.
         
         Args:
@@ -39,6 +40,7 @@ class StoryGenerator:
             generation_config: Generation configuration
             k_shot_count: Number of k-shot examples to use
             device: Device to use for model
+            use_mock_provider: Whether to use mock provider for testing
         """
         self.model_name = model_name
         self.vocabulary_path = vocabulary_path
@@ -46,6 +48,7 @@ class StoryGenerator:
         self.conversation_examples_path = conversation_examples_path
         self.k_shot_count = k_shot_count
         self.device = device
+        self.use_mock_provider = use_mock_provider
         
         # Use default config if not provided
         self.generation_config = generation_config or GenerationConfig()
@@ -63,10 +66,14 @@ class StoryGenerator:
                    f"{len(self.vocabulary.verbs)} verbs, {len(self.vocabulary.adjectives)} adjectives")
         
         # Initialize LLM provider
-        self.llm_provider = TransformersProvider(
-            model_name=self.model_name,
-            device=self.device
-        )
+        if self.use_mock_provider:
+            self.llm_provider = MockLLMProvider(model_name=self.model_name)
+            logger.info("Using mock LLM provider for testing")
+        else:
+            self.llm_provider = TransformersProvider(
+                model_name=self.model_name,
+                device=self.device
+            )
         
         # Initialize template manager
         self.template_manager = TemplateManager(
@@ -158,7 +165,13 @@ class StoryGenerator:
     def _save_stories(self, stories: List[GeneratedStory], output_path: str):
         """Save stories to file."""
         # Convert to dictionaries for JSON serialization
-        story_dicts = [story.dict() for story in stories]
+        story_dicts = []
+        for story in stories:
+            story_dict = story.dict()
+            # Convert datetime to string for JSON serialization
+            if 'created_at' in story_dict:
+                story_dict['created_at'] = story_dict['created_at'].isoformat()
+            story_dicts.append(story_dict)
         save_stories_jsonl(story_dicts, output_path)
     
     def _save_metadata(self, metadata: Dict[str, Any], output_path: Path):
