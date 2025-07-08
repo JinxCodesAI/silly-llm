@@ -1,0 +1,2 @@
+# Minimal dependencies for testing with MockProvider only
+pydantic>=2.0.0

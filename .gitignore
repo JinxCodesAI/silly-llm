@@ -209,8 +209,14 @@ Thumbs.db
 # Configuration files with sensitive data
 *_config.yaml
 *_config.yml
+*_config.json
 !example_config.yaml
 !example_config.yml
+!example_config.json
+!default_config.json
+
+# Keep requirements files
+!requirements*.txt
 
 # Data directories
 data/

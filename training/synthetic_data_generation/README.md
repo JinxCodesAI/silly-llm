@@ -43,6 +43,9 @@ training/synthetic_data_generation/
 
 ### Option 1: With Mock Provider (No Dependencies)
 ```bash
+# Install minimal dependencies
+pip install -r requirements-minimal.txt
+
 # Test without installing torch/transformers
 python -m training.synthetic_data_generation.main --mock-provider --num-stories 5
 ```
@@ -50,7 +53,7 @@ python -m training.synthetic_data_generation.main --mock-provider --num-stories 
 ### Option 2: With OpenAI-Compatible API
 1. **Install dependencies**:
    ```bash
-   pip install httpx pydantic
+   pip install -r requirements-api.txt
    ```
 
 2. **Set your API key**:
@@ -70,7 +73,7 @@ python -m training.synthetic_data_generation.main --mock-provider --num-stories 
 ### Option 3: With Local Transformers Models
 1. **Install dependencies**:
    ```bash
-   pip install torch transformers pydantic
+   pip install -r requirements-transformers.txt
    ```
 
 2. **Create a configuration file**:
@@ -84,6 +87,12 @@ python -m training.synthetic_data_generation.main --mock-provider --num-stories 
    ```bash
    python -m training.synthetic_data_generation.main --config my_config.json
    ```
+
+### Option 4: Install All Dependencies
+```bash
+# Install all dependencies (supports all providers)
+pip install -r requirements.txt
+```
 
 ## Configuration
 
@@ -328,20 +337,50 @@ python -m training.synthetic_data_generation.main \
 
 ## Dependencies
 
-### Core Dependencies (always required)
-- `pydantic` - Data validation and settings management
+The project provides multiple requirements files for different use cases:
 
-### Provider-Specific Dependencies
+### Requirements Files
 
-#### For TransformersProvider (local models)
-- `torch` - PyTorch for model inference
-- `transformers` - HuggingFace transformers library
+- **`requirements.txt`** - All dependencies (supports all providers)
+- **`requirements-minimal.txt`** - Minimal dependencies (MockProvider only)
+- **`requirements-api.txt`** - API provider dependencies (OpenAI-compatible)
+- **`requirements-transformers.txt`** - Local model dependencies (TransformersProvider)
+- **`requirements-dev.txt`** - Development dependencies (includes testing tools)
 
-#### For OpenAICompatibleProvider (API-based)
-- `httpx` - HTTP client for API requests
+### Installation Options
 
-#### For MockProvider (testing)
-- No additional dependencies
+```bash
+# For testing only (MockProvider)
+pip install -r requirements-minimal.txt
+
+# For API-based generation (OpenAI, Together AI, etc.)
+pip install -r requirements-api.txt
+
+# For local model generation (HuggingFace transformers)
+pip install -r requirements-transformers.txt
+
+# For all features
+pip install -r requirements.txt
+
+# For development
+pip install -r requirements-dev.txt
+```
+
+### Core Dependencies by Provider
+
+#### MockProvider (testing)
+- `pydantic>=2.0.0`
+
+#### OpenAICompatibleProvider (API-based)
+- `pydantic>=2.0.0`
+- `httpx>=0.24.0`
+
+#### TransformersProvider (local models)
+- `pydantic>=2.0.0`
+- `torch>=2.0.0`
+- `transformers>=4.30.0`
+- `accelerate>=0.20.0`
+- `safetensors>=0.3.0`
 
 ## Environment Variables
 
