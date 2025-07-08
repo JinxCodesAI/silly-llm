@@ -1,0 +1,35 @@
+{
+"nouns": [
+"moon", "star", "bed", "blanket", "pillow", "teddy bear", "book", "car", "cat",
+"dog", "bunny", "bird", "fish", "frog", "duck", "chicken", "cow", "sheep", "pig",
+"goat", "elephant", "monkey", "bear", "mom", "dad", "sister", "brother", "grandma",
+"grandpa", "doll", "blocks", "ball", "window", "door", "night", "dream", "pajamas",
+"slippers", "light", "dark", "monster", "castle", "garden", "river", "forest", "sun",
+"rain", "tree", "flower", "rock", "stick", "bucket", "shovel", "airplane", "bicycle",
+"boat", "knight", "queen", "crown", "sword", "dragon", "horse", "princess", "king",
+"hill", "ocean", "snow", "mountain", "leaf", "box", "cup", "berry", "grape", "apple",
+"banana", "cake", "cookie", "cloud", "lamp", "table", "chair", "baby", "sock",
+"shirt", "cap", "shoes", "teddy", "mirror", "count"
+],
+"adjectives": [
+"big", "small", "fluffy", "shiny", "happy", "sad", "tired", "sleepy", "gentle", "brave",
+"funny", "colorful", "quiet", "loud", "warm", "cold", "bright", "dark", "deep",
+"spiky", "round", "soft", "bumpy", "cute", "slimy", "muddy", "crunchy", "sweet", "sour",
+"sticky", "smooth", "wobbly", "loud", "tiny", "bold", "bold", "warm", "tiny", "warm",
+"loud", "quiet", "green", "blue", "red", "yellow", "pink", "golden", "stormy", "salty",
+"smooth", "rough", "fluffy", "giggle", "blue", "red", "stormy", "magical", "sparkly",
+"chatty", "lazy", "curly", "striped", "sandy", "wet", "dry", "dim", "bulky",
+"wooden", "plastic", "foil", "starry", "cloudy", "rainbow"
+],
+"verbs": [
+"hop", "jump", "run", "walk", "sleep", "dream", "eat", "sing", "bathe", "talk",
+"read", "hug", "kiss", "yawn", "snore", "giggle", "blink", "rinse", "draw", "brush",
+"blow", "build", "shout", "whisper", "wave", "point", "pretend", "play", "sneeze",
+"float", "whip", "march", "smile", "frown", "peek", "hide", "search", "follow", "pick",
+"kick", "beat", "crabwalk", "pirouette", "dance", "stomp", "cha-cha", "sashay",
+"ripples", "soak", "lift", "trace", "greets", "sharpen", "paint", "batter", "schooled",
+"swim", "gallop", "snuggle", "stretch", "chase", "change", "jump", "run", "climb",
+"sing", "sleep", "wake", "smile", "cry", "yawn", "snore", "giggle", "hide", "skiddle",
+"toddle", "splash", "thump", "crinkle", "whisper", "tiptoe", "glide"
+]
+}
