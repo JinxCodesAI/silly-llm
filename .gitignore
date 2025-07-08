@@ -206,10 +206,6 @@ Thumbs.db
 # Project specific
 *.metadata.json
 
-# Configuration files with sensitive data
-*_config.yaml
-*_config.yml
-*_config.json
 !example_config.yaml
 !example_config.yml
 !example_config.json
