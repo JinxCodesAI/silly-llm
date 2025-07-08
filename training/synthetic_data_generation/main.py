@@ -130,7 +130,9 @@ async def main():
         from training.synthetic_data_generation.src.config import DataPaths, OutputSettings
         config = StoryGenerationConfig(
             data_paths=DataPaths(
-                vocabulary_path="training/synthetic_data_generation/config/vocabulary.json"
+                vocabulary_path="training/synthetic_data_generation/config/vocabulary.json",
+                story_features_path="docs/story_features.json",
+                conversation_examples_path="training/synthetic_data_generation/config/example_conversation.txt"
             ),
             output_settings=OutputSettings(
                 output_path="generated_stories.jsonl"

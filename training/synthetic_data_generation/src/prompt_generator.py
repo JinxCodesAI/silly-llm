@@ -39,16 +39,18 @@ class PromptGenerator:
             except Exception as e:
                 logger.warning(f"Failed to load conversation examples: {e}")
     
-    def generate_prompts(self, count: int, 
+    def generate_prompts(self, count: int,
                         use_k_shot: bool = True,
-                        ensure_diversity: bool = True) -> List[StoryPrompt]:
+                        ensure_diversity: bool = True,
+                        batch_id: Optional[int] = None) -> List[StoryPrompt]:
         """Generate a batch of story prompts.
-        
+
         Args:
             count: Number of prompts to generate
             use_k_shot: Whether to include k-shot examples
             ensure_diversity: Whether to ensure word diversity across prompts
-            
+            batch_id: Optional batch identifier for prompt IDs
+
         Returns:
             List of StoryPrompt objects
         """
@@ -68,11 +70,17 @@ class PromptGenerator:
             if use_k_shot and self.k_shot_count > 0 and self.conversation_examples:
                 k_shot_examples = self._select_k_shot_examples()
             
-            # Create prompt
+            # Create prompt with proper ID format and random additional condition
+            if batch_id is not None:
+                prompt_id = f"batch_{batch_id:03d}_prompt_{i:03d}"
+            else:
+                prompt_id = f"prompt_{i:06d}"
+
             prompt = self.template_manager.create_k_shot_prompt(
                 selected_words=selected_words,
                 k_shot_examples=k_shot_examples,
-                prompt_id=f"prompt_{i:06d}"
+                additional_condition=None,  # Let template manager randomly select
+                prompt_id=prompt_id
             )
             
             prompts.append(prompt)

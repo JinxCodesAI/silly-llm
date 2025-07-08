@@ -107,7 +107,29 @@ class StoryGenerator:
         )
         
         logger.info("All components initialized successfully")
-    
+
+    def _get_diverse_words(self, used_combinations: set) -> Dict[str, str]:
+        """Get diverse word combination avoiding previously used combinations.
+
+        Args:
+            used_combinations: Set of previously used word combinations
+
+        Returns:
+            Dictionary with word1, word2, word3
+        """
+        max_attempts = 100
+
+        for _ in range(max_attempts):
+            words = self.vocabulary.get_random_words()
+            combination = tuple(words.values())
+
+            if combination not in used_combinations:
+                return words
+
+        # If we can't find a unique combination, return random words
+        logger.warning("Could not find unique word combination, using random words")
+        return self.vocabulary.get_random_words()
+
     async def generate_stories(self,
                              num_stories: int,
                              output_path: str,
@@ -131,34 +153,78 @@ class StoryGenerator:
         logger.info(f"Starting generation of {num_stories} stories")
         start_time = time.time()
         
-        # Generate prompts
-        logger.info("Generating prompts...")
-        prompts = self.prompt_generator.generate_prompts(
-            count=num_stories,
-            use_k_shot=use_k_shot,
-            ensure_diversity=ensure_diversity
-        )
-        
-        # Process in batches
+        # Process in batches with proper batch IDs
         all_stories = []
         all_results = []
-        
+        batch_size = self.generation_config.batch_size
+        total_batches = (num_stories + batch_size - 1) // batch_size
+        used_word_combinations = set()
+
         def progress_callback(completed: int, total: int):
             logger.info(f"Progress: {completed}/{total} prompts processed ({completed/total*100:.1f}%)")
+
+        logger.info(f"Processing {num_stories} stories in {total_batches} batches of size {batch_size}")
+
+        for batch_idx in range(total_batches):
+            # Calculate stories for this batch
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, num_stories)
+            stories_in_batch = end_idx - start_idx
+
+            logger.info(f"Generating prompts for batch {batch_idx + 1}/{total_batches} ({stories_in_batch} stories)")
+
+            # Generate prompts for this specific batch
+            batch_prompts = []
+            for pos_in_batch in range(stories_in_batch):
+                # Generate diverse words if required
+                if ensure_diversity:
+                    selected_words = self._get_diverse_words(used_word_combinations)
+                    used_word_combinations.add(tuple(selected_words.values()))
+                else:
+                    selected_words = self.vocabulary.get_random_words()
+
+                # Select k-shot examples if requested
+                k_shot_examples = []
+                if use_k_shot and self.prompt_generator.k_shot_count > 0 and self.prompt_generator.conversation_examples:
+                    k_shot_examples = self.prompt_generator._select_k_shot_examples()
+
+                # Create prompt with batch and position info
+                prompt_id = f"batch_{batch_idx:03d}_pos_{pos_in_batch:03d}"
+                prompt = self.template_manager.create_k_shot_prompt(
+                    selected_words=selected_words,
+                    k_shot_examples=k_shot_examples,
+                    additional_condition=None,  # Let template manager randomly select
+                    prompt_id=prompt_id
+                )
+
+                batch_prompts.append(prompt)
+
+            # Process this batch
+            try:
+                logger.info(f"Processing batch {batch_idx + 1}/{total_batches}")
+                result = await self.batch_processor.process_batch_with_ids(
+                    batch_prompts, batch_idx
+                )
+                all_results.append(result)
+                all_stories.extend(result.stories)
+
+                # Progress callback
+                progress_callback(len(all_stories), num_stories)
+
+                # Save intermediate results if requested
+                if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
+                    intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
+                    self._save_stories(all_stories, intermediate_path)
+
+                # Clear memory between batches
+                self.llm_provider.clear_memory()
+
+            except Exception as e:
+                logger.error(f"Failed to process batch {batch_idx + 1}: {e}")
+                # Continue with next batch
+                continue
         
-        batch_results = await self.batch_processor.process_multiple_batches(
-            prompts, progress_callback=progress_callback
-        )
-        
-        # Collect all stories
-        for result in batch_results:
-            all_stories.extend(result.stories)
-            all_results.append(result)
-            
-            # Save intermediate results if requested
-            if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
-                intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
-                self._save_stories(all_stories, intermediate_path)
+        # Final processing is already done in the loop above
         
         # Save final results
         self._save_stories(all_stories, output_path)

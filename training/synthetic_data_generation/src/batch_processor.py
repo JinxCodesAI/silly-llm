@@ -268,7 +268,35 @@ class BatchProcessor:
                 continue
         
         return results
-    
+
+    async def process_batch_with_ids(self, prompts: List[StoryPrompt], batch_id: int) -> GenerationResult:
+        """Process a batch of prompts with batch ID for story naming.
+
+        Args:
+            prompts: List of StoryPrompt objects
+            batch_id: Batch identifier
+
+        Returns:
+            GenerationResult with generated stories and metadata
+        """
+        # Use the regular process_batch but update story IDs afterwards
+        result = await self.process_batch(prompts)
+
+        # Update story IDs to include batch and position information
+        for i, story in enumerate(result.stories):
+            # Extract position from prompt_id if available
+            if "pos_" in story.prompt_id:
+                # Keep the existing format from prompt_id
+                story_id = f"story_{story.prompt_id}"
+            else:
+                # Fallback format
+                story_id = f"story_batch_{batch_id:03d}_pos_{i:03d}_{story.story_id.split('_')[-1]}"
+
+            # Update the story_id
+            story.story_id = story_id
+
+        return result
+
     def get_processor_stats(self) -> Dict[str, Any]:
         """Get processor statistics and configuration.
         
