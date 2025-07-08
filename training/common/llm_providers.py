@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 import time
 import logging
+import os
+import asyncio
 
 from .data_models import GenerationConfig, GeneratedStory, KShotExample
 
@@ -263,5 +265,139 @@ class MockLLMProvider(LLMProvider):
             "supports_chat_template": True,
             "max_batch_size": 100,
             "memory_usage_gb": 0.0,
+            "generation_count": self.generation_count
+        }
+
+
+class OpenAICompatibleProvider(LLMProvider):
+    """OpenAI-compatible API provider for remote model inference."""
+
+    def __init__(self, model_name: str, api_base_url: str = "https://api.openai.com/v1", **kwargs):
+        """Initialize OpenAI-compatible provider.
+
+        Args:
+            model_name: Name of the model to use
+            api_base_url: Base URL for the API (default: OpenAI)
+            **kwargs: Additional arguments
+        """
+        self.model_name = model_name
+        self.api_base_url = api_base_url.rstrip('/')
+        self.api_key = os.getenv('AI_API_KEY')
+        self.generation_count = 0
+
+        if not self.api_key:
+            raise ValueError(
+                "AI_API_KEY environment variable is required for OpenAI-compatible provider. "
+                "Set it with: export AI_API_KEY=your_api_key"
+            )
+
+        # Validate API base URL
+        if not self.api_base_url.startswith(('http://', 'https://')):
+            raise ValueError(f"Invalid API base URL: {self.api_base_url}")
+
+        logger.info(f"Initialized OpenAI-compatible provider with model: {self.model_name}")
+        logger.info(f"API base URL: {self.api_base_url}")
+
+    async def generate_batch(self, prompts: List[str], config: GenerationConfig) -> List[str]:
+        """Generate responses for a batch of prompts using OpenAI-compatible API."""
+        if not prompts:
+            return []
+
+        try:
+            import httpx
+        except ImportError as e:
+            raise ImportError(
+                "httpx is required for OpenAI-compatible provider. "
+                "Install it with: pip install httpx"
+            ) from e
+
+        logger.info(f"Generating {len(prompts)} responses using OpenAI-compatible API")
+
+        # Process prompts in a loop to simulate batch generation
+        responses = []
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for i, prompt in enumerate(prompts):
+                try:
+                    response = await self._generate_single(client, prompt, config)
+                    responses.append(response)
+                    logger.debug(f"Generated response {i+1}/{len(prompts)}")
+
+                    # Small delay to avoid rate limiting
+                    if i < len(prompts) - 1:
+                        await asyncio.sleep(0.1)
+
+                except Exception as e:
+                    logger.error(f"Failed to generate response {i+1}: {e}")
+                    # Add empty response to maintain batch size
+                    responses.append("")
+
+        self.generation_count += len(prompts)
+        logger.info(f"Completed batch generation: {len([r for r in responses if r])} successful")
+
+        return responses
+
+    async def _generate_single(self, client: "httpx.AsyncClient", prompt: str, config: GenerationConfig) -> str:
+        """Generate a single response using the API."""
+        # Prepare the request payload
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": config.max_new_tokens,
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "stream": False
+        }
+
+        # Add optional parameters if they're supported
+        if hasattr(config, 'repetition_penalty') and config.repetition_penalty != 1.0:
+            payload["frequency_penalty"] = (config.repetition_penalty - 1.0) * 0.5
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        # Make the API request
+        response = await client.post(
+            f"{self.api_base_url}/chat/completions",
+            json=payload,
+            headers=headers
+        )
+
+        if response.status_code != 200:
+            error_msg = f"API request failed with status {response.status_code}: {response.text}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+
+        # Parse the response
+        result = response.json()
+
+        if "choices" not in result or not result["choices"]:
+            raise Exception("No choices in API response")
+
+        content = result["choices"][0]["message"]["content"]
+        return content.strip()
+
+    def get_memory_usage(self) -> float:
+        """Get memory usage (always 0 for API providers)."""
+        return 0.0
+
+    def clear_memory(self):
+        """Clear memory (no-op for API providers)."""
+        pass
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Get provider capabilities and metadata."""
+        return {
+            "model_name": self.model_name,
+            "device": "api",
+            "supports_batching": True,
+            "supports_chat_template": True,
+            "max_batch_size": 100,  # Can be adjusted based on rate limits
+            "memory_usage_gb": 0.0,
+            "api_base_url": self.api_base_url,
             "generation_count": self.generation_count
         }

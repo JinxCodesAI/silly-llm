@@ -9,7 +9,7 @@ import logging
 from ...common.data_models import (
     Vocabulary, GenerationConfig, GeneratedStory, GenerationResult
 )
-from ...common.llm_providers import TransformersProvider, MockLLMProvider, LLMProvider
+from ...common.llm_providers import TransformersProvider, MockLLMProvider, OpenAICompatibleProvider, LLMProvider
 from ...common.utils import load_vocabulary, save_stories_jsonl
 from .template_manager import TemplateManager
 from .prompt_generator import PromptGenerator
@@ -29,7 +29,9 @@ class StoryGenerator:
                  generation_config: Optional[GenerationConfig] = None,
                  k_shot_count: int = 2,
                  device: str = "auto",
-                 use_mock_provider: bool = False):
+                 use_mock_provider: bool = False,
+                 use_openai_provider: bool = False,
+                 api_base_url: str = "https://api.openai.com/v1"):
         """Initialize story generator.
         
         Args:
@@ -41,6 +43,8 @@ class StoryGenerator:
             k_shot_count: Number of k-shot examples to use
             device: Device to use for model
             use_mock_provider: Whether to use mock provider for testing
+            use_openai_provider: Whether to use OpenAI-compatible API provider
+            api_base_url: Base URL for OpenAI-compatible API
         """
         self.model_name = model_name
         self.vocabulary_path = vocabulary_path
@@ -49,6 +53,8 @@ class StoryGenerator:
         self.k_shot_count = k_shot_count
         self.device = device
         self.use_mock_provider = use_mock_provider
+        self.use_openai_provider = use_openai_provider
+        self.api_base_url = api_base_url
         
         # Use default config if not provided
         self.generation_config = generation_config or GenerationConfig()
@@ -69,6 +75,12 @@ class StoryGenerator:
         if self.use_mock_provider:
             self.llm_provider = MockLLMProvider(model_name=self.model_name)
             logger.info("Using mock LLM provider for testing")
+        elif self.use_openai_provider:
+            self.llm_provider = OpenAICompatibleProvider(
+                model_name=self.model_name,
+                api_base_url=self.api_base_url
+            )
+            logger.info(f"Using OpenAI-compatible API provider with model: {self.model_name}")
         else:
             self.llm_provider = TransformersProvider(
                 model_name=self.model_name,

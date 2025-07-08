@@ -3,6 +3,7 @@
 import asyncio
 import argparse
 import sys
+import os
 from pathlib import Path
 import logging
 
@@ -82,6 +83,19 @@ async def main():
         action="store_true",
         help="Use mock LLM provider for testing (no torch/transformers required)"
     )
+
+    parser.add_argument(
+        "--openai-provider",
+        action="store_true",
+        help="Use OpenAI-compatible API provider (requires AI_API_KEY env var)"
+    )
+
+    parser.add_argument(
+        "--api-base-url",
+        type=str,
+        default="https://api.openai.com/v1",
+        help="Base URL for OpenAI-compatible API (default: OpenAI)"
+    )
     
     parser.add_argument(
         "--log-level",
@@ -138,6 +152,12 @@ async def main():
         config.generation_settings.use_k_shot = False
     if args.no_diversity:
         config.generation_settings.ensure_diversity = False
+
+    # Validate provider options
+    provider_count = sum([args.mock_provider, args.openai_provider])
+    if provider_count > 1:
+        logger.error("Cannot use multiple providers simultaneously. Choose one: --mock-provider, --openai-provider, or default transformers.")
+        sys.exit(1)
     
     # Validate required paths
     if not Path(config.data_paths.vocabulary_path).exists():
@@ -153,9 +173,15 @@ async def main():
         config.data_paths.conversation_examples_path = None
     
     # Log configuration
+    provider_type = "Mock" if args.mock_provider else "OpenAI-compatible API" if args.openai_provider else "Transformers"
     logger.info("Generation Configuration:")
+    logger.info(f"  Provider: {provider_type}")
     logger.info(f"  Model: {config.model_name}")
-    logger.info(f"  Device: {config.device}")
+    if args.openai_provider:
+        logger.info(f"  API Base URL: {args.api_base_url}")
+        logger.info(f"  API Key: {'Set' if os.getenv('AI_API_KEY') else 'NOT SET'}")
+    else:
+        logger.info(f"  Device: {config.device}")
     logger.info(f"  Stories to generate: {config.generation_settings.num_stories}")
     logger.info(f"  Batch size: {config.generation.batch_size}")
     logger.info(f"  K-shot examples: {config.generation_settings.use_k_shot} (count: {config.generation_settings.k_shot_count})")
@@ -173,7 +199,9 @@ async def main():
             generation_config=config.generation,
             k_shot_count=config.generation_settings.k_shot_count,
             device=config.device,
-            use_mock_provider=args.mock_provider
+            use_mock_provider=args.mock_provider,
+            use_openai_provider=args.openai_provider,
+            api_base_url=args.api_base_url
         )
         
         # Generate stories

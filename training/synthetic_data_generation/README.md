@@ -47,7 +47,27 @@ training/synthetic_data_generation/
 python -m training.synthetic_data_generation.main --mock-provider --num-stories 5
 ```
 
-### Option 2: With Real Models
+### Option 2: With OpenAI-Compatible API
+1. **Install dependencies**:
+   ```bash
+   pip install httpx pydantic
+   ```
+
+2. **Set your API key**:
+   ```bash
+   export AI_API_KEY=your_api_key_here
+   ```
+
+3. **Generate stories**:
+   ```bash
+   # Using OpenAI
+   python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-3.5-turbo --num-stories 10
+
+   # Using custom API (e.g., local LLM server)
+   python -m training.synthetic_data_generation.main --openai-provider --api-base-url http://localhost:8000/v1 --model-name your-model --num-stories 10
+   ```
+
+### Option 3: With Local Transformers Models
 1. **Install dependencies**:
    ```bash
    pip install torch transformers pydantic
@@ -71,12 +91,20 @@ The system uses JSON configuration files. See `config/example_config.json` for a
 
 ### Key Configuration Options
 
-- **model_name**: HuggingFace model to use (default: "Qwen/Qwen2.5-3B-Instruct")
+- **model_name**: Model to use (HuggingFace model or API model name)
 - **num_stories**: Number of stories to generate
 - **batch_size**: Batch size for efficient generation
 - **k_shot_count**: Number of example conversations to include
 - **use_k_shot**: Whether to use k-shot prompting
 - **ensure_diversity**: Ensure word combinations are diverse across prompts
+
+### Provider Options
+
+The pipeline supports three different providers:
+
+1. **TransformersProvider** (default): Uses local HuggingFace transformers models
+2. **OpenAICompatibleProvider**: Uses OpenAI-compatible APIs (OpenAI, local servers, etc.)
+3. **MockProvider**: For testing without dependencies
 
 ## Template System
 
@@ -116,7 +144,7 @@ messages_batch = [
 python -m training.synthetic_data_generation.main
 
 # Use custom configuration
-python -m training.synthetic_data_generation.main --config my_config.yaml
+python -m training.synthetic_data_generation.main --config my_config.json
 
 # Quick overrides
 python -m training.synthetic_data_generation.main \
@@ -126,6 +154,53 @@ python -m training.synthetic_data_generation.main \
     --output-path "my_stories.jsonl"
 ```
 
+### Provider-Specific Usage
+
+#### OpenAI-Compatible API
+```bash
+# Set API key
+export AI_API_KEY=your_api_key
+
+# Use OpenAI
+python -m training.synthetic_data_generation.main \
+    --openai-provider \
+    --model-name "gpt-3.5-turbo" \
+    --num-stories 100
+
+# Use custom API endpoint (e.g., local LLM server)
+python -m training.synthetic_data_generation.main \
+    --openai-provider \
+    --api-base-url "http://localhost:8000/v1" \
+    --model-name "your-local-model" \
+    --num-stories 100
+
+# Use other OpenAI-compatible services
+python -m training.synthetic_data_generation.main \
+    --openai-provider \
+    --api-base-url "https://api.together.xyz/v1" \
+    --model-name "meta-llama/Llama-2-7b-chat-hf" \
+    --num-stories 100
+```
+
+#### Local Transformers
+```bash
+# Use specific device
+python -m training.synthetic_data_generation.main --device cuda
+
+# Use different model
+python -m training.synthetic_data_generation.main \
+    --model-name "microsoft/DialoGPT-medium"
+```
+
+#### Testing
+```bash
+# Use mock provider for testing
+python -m training.synthetic_data_generation.main --mock-provider
+
+# Test OpenAI provider
+python training/synthetic_data_generation/examples/test_openai_provider.py
+```
+
 ### Advanced Options
 ```bash
 # Disable k-shot examples
@@ -133,12 +208,6 @@ python -m training.synthetic_data_generation.main --no-k-shot
 
 # Disable word diversity
 python -m training.synthetic_data_generation.main --no-diversity
-
-# Use specific device
-python -m training.synthetic_data_generation.main --device cuda
-
-# Use mock provider for testing
-python -m training.synthetic_data_generation.main --mock-provider
 
 # Increase logging verbosity
 python -m training.synthetic_data_generation.main --log-level DEBUG
@@ -253,6 +322,47 @@ python -m training.synthetic_data_generation.main \
 ### Production run with monitoring
 ```bash
 python -m training.synthetic_data_generation.main \
-    --config production_config.yaml \
+    --config production_config.json \
     --log-level INFO > generation.log 2>&1
 ```
+
+## Dependencies
+
+### Core Dependencies (always required)
+- `pydantic` - Data validation and settings management
+
+### Provider-Specific Dependencies
+
+#### For TransformersProvider (local models)
+- `torch` - PyTorch for model inference
+- `transformers` - HuggingFace transformers library
+
+#### For OpenAICompatibleProvider (API-based)
+- `httpx` - HTTP client for API requests
+
+#### For MockProvider (testing)
+- No additional dependencies
+
+## Environment Variables
+
+### For OpenAI-Compatible Provider
+- `AI_API_KEY` - Your API key for the service (required)
+
+Example:
+```bash
+export AI_API_KEY=sk-your-openai-api-key-here
+# or for other services:
+export AI_API_KEY=your-api-key-here
+```
+
+## Supported API Providers
+
+The OpenAI-compatible provider works with any service that implements the OpenAI chat completions API:
+
+- **OpenAI** - `https://api.openai.com/v1`
+- **Together AI** - `https://api.together.xyz/v1`
+- **Anyscale** - `https://api.endpoints.anyscale.com/v1`
+- **Local servers** (e.g., vLLM, text-generation-webui) - `http://localhost:8000/v1`
+- **Other OpenAI-compatible services**
+
+Simply set the appropriate `--api-base-url` and `--model-name` for your service.
