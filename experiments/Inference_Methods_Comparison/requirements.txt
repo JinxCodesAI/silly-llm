@@ -1,11 +1,11 @@
 # Core dependencies for inference comparison experiments
-torch>=2.6.0
-transformers>=4.53.1
-accelerate>=1.8.1
-bitsandbytes>=0.46.1
-flash-attn>=2.8.0.post2
-psutil>=5.9.0
+torch==2.6.0
+transformers==4.53.1
+accelerate==1.8.1
+bitsandbytes==0.46.1
+flash-attn==2.7.3
+psutil==7.0.0
 
 # Optional dependencies for enhanced performance
-optimum>=1.12.0
-auto-gptq>=0.4.0
+optimum==1.26.1
+auto-gptq==0.7.1

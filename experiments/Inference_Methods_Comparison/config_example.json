@@ -1,12 +1,12 @@
 {
-  "main_model": "Qwen/Qwen3-4B",
-  "assistant_model": "Qwen/Qwen3-0.6B",
+  "main_model": "Qwen/Qwen3-0.6B",
   "max_new_tokens": 300,
   "temperature": 0.7,
   "top_p": 0.9,
-  "top_k": 50,
-  "num_completions": 200,
-  "batch_size": 8,
+  "top_k": 20,
+  "num_completions": 512,
+  "batch_size": 512,
+  "methods_to_test": ["batched"],
   "prompts": [
     "generate short (up to 150 words) bed time story containing word elephant and cake",
     "generate short (up to 150 words) bed time story containing word dog and sausage"

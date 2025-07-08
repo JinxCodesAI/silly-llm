@@ -1,0 +1,93 @@
+PROMPT:
+
+Try to limit your vocabulary to following, simple english word, but keep story coherent and gramatically correct
+
+Nouns:
+"moon", "star", "bed", "blanket", "pillow", "teddy bear", "book", "car", "cat",
+"dog", "bunny", "bird", "fish", "frog", "duck", "chicken", "cow", "sheep", "pig",
+"goat", "elephant", "monkey", "bear", "mom", "dad", "sister", "brother", "grandma",
+"grandpa", "doll", "blocks", "ball", "window", "door", "night", "dream", "pajamas",
+"slippers", "light", "dark", "monster", "castle", "garden", "river", "forest", "sun",
+"rain", "tree", "flower", "rock", "stick", "bucket", "shovel", "airplane", "bicycle",
+"boat", "knight", "queen", "crown", "sword", "dragon", "horse", "princess", "king",
+"hill", "ocean", "snow", "mountain", "leaf", "box", "cup", "berry", "grape", "apple",
+"banana", "cake", "cookie", "cloud", "lamp", "table", "chair", "baby", "sock",
+"shirt", "cap", "shoes", "teddy", "mirror", "count"
+Adjectives:
+"big", "small", "fluffy", "shiny", "happy", "sad", "tired", "sleepy", "gentle", "brave",
+"funny", "colorful", "quiet", "loud", "warm", "cold", "bright", "dark", "deep",
+"spiky", "round", "soft", "bumpy", "cute", "slimy", "muddy", "crunchy", "sweet", "sour",
+"sticky", "smooth", "wobbly", "loud", "tiny", "bold", "bold", "warm", "tiny", "warm",
+"loud", "quiet", "green", "blue", "red", "yellow", "pink", "golden", "stormy", "salty",
+"smooth", "rough", "fluffy", "giggle", "blue", "red", "stormy", "magical", "sparkly",
+"chatty", "lazy", "curly", "striped", "sandy", "wet", "dry", "dim", "bulky",
+"wooden", "plastic", "foil", "starry", "cloudy", "rainbow"
+Verbs
+"hop", "jump", "run", "walk", "sleep", "dream", "eat", "sing", "bathe", "talk",
+"read", "hug", "kiss", "yawn", "snore", "giggle", "blink", "rinse", "draw", "brush",
+"blow", "build", "shout", "whisper", "wave", "point", "pretend", "play", "sneeze",
+"float", "whip", "march", "smile", "frown", "peek", "hide", "search", "follow", "pick",
+"kick", "beat", "crabwalk", "pirouette", "dance", "stomp", "cha-cha", "sashay",
+"ripples", "soak", "lift", "trace", "greets", "sharpen", "paint", "batter", "schooled",
+"swim", "gallop", "snuggle", "stretch", "chase", "change", "jump", "run", "climb",
+"sing", "sleep", "wake", "smile", "cry", "yawn", "snore", "giggle", "hide", "skiddle",
+"toddle", "splash", "thump", "crinkle", "whisper", "tiptoe", "glide"
+
+PROMPT:
+
+Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
+containing words "dream", "shovel", "eat"
+make sure story has sad elements but ends well
+
+keep story coherent and gramatically correct
+
+RESPONSE:
+
+Benny the bunny found a red shovel one night. He wanted to eat a berry, but all were gone. Sadly, he went to bed.
+That night, Benny dreamed! His shovel glowed, ding-ding! It carried him on a boat to a moonlit garden. There, golden berries sparkled. Benny dug a soft hill with the shovel, lifting a bunch of sweet blueberries. He ate them, splish-splash-giggle!
+Morning came. Benny peeked. In his real garden, under a tree, he saw a green leaf–covered box. Inside: squishy blueberries! He nibbled one, yum! The shovel, now muddy, snuggled by a stone.
+Bunny smiled. "You are magic, Shovel!" And the shovel thumped, like a tiny drum.
+The tale ends here: Benny full, cozy. The shovel dreams of new digs. The sun shines, bright.
+
+PROMPT:
+
+Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
+containing words "door", "warm", "snuggle"
+make sure the story contains a dialogue
+
+keep story coherent and gramatically correct
+
+RESPONSE:
+
+Benny blinked his sleepy eyes. "Dad, not tired!" he whispered.
+Mom tiptoed through the door. "Night-night, little bunny," she said.
+"But the dark is cold!" Benny sighed. He snuggled his fluffy teddy, Blinky.
+Mom smiled. She pointed out the window. "See that tiny star? It’s warm. It watches you."
+Benny peeked. "Is it... a golden light?"
+She kissed his forehead. "Big dream awaits. Snuggle under your bed’s blue blanket. It’s magic!"
+He hugged Blinky tight. Snuggle, snuggle. Benny’s toes warmed.
+"Mom, can we trace stars?"
+"Shh," she giggled, "after sleep. Big dreams wear little socks!"
+Benny yawned, yawning wide. "Can... Dad read after?"
+"First, dream-bumps!" Mom whispered.
+The frogs hopped. The horses galloped.
+Benny giggled, pointing. "Dad, play again!"
+Soon, he blinked. Little by little, silence came.
+In the soft dark, Blinky whispered, "Sweet dreams, brave boy. Count stars, not fears."
+Benny patted his warm blanket. "Night. Tired. Hug Blinky. Dream..."
+He slid down, slid down... into a cozy, bright castle of dreams.
+
+PROMPT:
+
+Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
+containing words "door", "warm", "snuggle"
+make sure story convey a clear moral value
+
+keep story coherent and gramatically correct
+
+RESPONSE:
+
+Lily couldn’t sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.
+Suddenly, the book started to giggle. It whispered, “Lily, let’s dream!” The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily’s eyes blinked in surprise.
+But soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, “Teddy, I’m scared.”
+The book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile.
