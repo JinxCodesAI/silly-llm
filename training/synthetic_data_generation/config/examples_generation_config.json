@@ -1,9 +1,9 @@
 {
-  "model_name": "Qwen/Qwen3-4B",
+  "model_name": "qwen/qwen3-235b-a22b:free",
   "device": "auto",
   "generation": {
-    "batch_size": 32,
-    "max_new_tokens": 2048,
+    "batch_size": 1,
+    "max_new_tokens": 4096,
     "temperature": 0.6,
     "top_p": 0.95,
     "do_sample": true,
