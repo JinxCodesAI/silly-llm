@@ -208,7 +208,15 @@ class BatchProcessor:
                     logger.debug(f"Story validation failed for {prompt.prompt_id}: {validation.issues}")
                     return None
             
-            # Create story object
+            # Prepare k-shot examples for metadata
+            k_shot_examples_data = []
+            for example in prompt.k_shot_examples:
+                k_shot_examples_data.append({
+                    "role": example.role,
+                    "content": example.content
+                })
+
+            # Create story object with enhanced metadata
             story = GeneratedStory(
                 story_id=f"story_{uuid.uuid4().hex[:8]}",
                 prompt_id=prompt.prompt_id,
@@ -222,7 +230,18 @@ class BatchProcessor:
                     "selected_words": prompt.selected_words,
                     "additional_condition": prompt.additional_condition,
                     "k_shot_count": len(prompt.k_shot_examples),
-                    "template_version": prompt.metadata.get("template_version", "unknown")
+                    "template_version": prompt.metadata.get("template_version", "unknown"),
+                    "full_prompt": prompt.full_prompt,
+                    "template": prompt.template,
+                    "k_shot_examples": k_shot_examples_data,
+                    "multi_turn_conversation": {
+                        "messages": k_shot_examples_data + [{
+                            "role": "user",
+                            "content": prompt.full_prompt
+                        }],
+                        "total_messages": len(k_shot_examples_data) + 1,
+                        "conversation_format": "openai_chat_format"
+                    }
                 }
             )
             

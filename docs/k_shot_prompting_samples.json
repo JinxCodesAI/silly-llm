@@ -21,10 +21,6 @@
         {
           "role": "assistant",
           "content": "Lily couldn't sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.\nSuddenly, the book started to giggle. It whispered, \"Lily, let's dream!\" The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily's eyes blinked in surprise.\nBut soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, \"Teddy, I'm scared.\"\nThe book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile."
-        },
-        {
-          "role": "user",
-          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words cat jump happy\n\nmake sure story has sad elements but ends well\n\nkeep story coherent and gramatically correct"
         }
       ]
     },
@@ -39,10 +35,6 @@
         {
           "role": "assistant",
           "content": "Benny the bunny found a red shovel one night. He wanted to eat a berry, but all were gone. Sadly, he went to bed.\nThat night, Benny dreamed! His shovel glowed, ding-ding! It carried him on a boat to a moonlit garden. There, golden berries sparkled. Benny dug a soft hill with the shovel, lifting a bunch of sweet blueberries. He ate them, splish-splash-giggle!\nMorning came. Benny peeked. In his real garden, under a tree, he saw a green leaf–covered box. Inside: squishy blueberries! He nibbled one, yum! The shovel, now muddy, snuggled by a stone.\nBunny smiled. \"You are magic, Shovel!\" And the shovel thumped, like a tiny drum.\nThe tale ends here: Benny full, cozy. The shovel dreams of new digs. The sun shines, bright."
-        },
-        {
-          "role": "user",
-          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words moon star bright\n\nmake sure story do not have sad elements and ends well\n\nkeep story coherent and gramatically correct"
         }
       ]
     },
@@ -73,10 +65,6 @@
         {
           "role": "assistant",
           "content": "Lily couldn't sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.\nSuddenly, the book started to giggle. It whispered, \"Lily, let's dream!\" The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily's eyes blinked in surprise.\nBut soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, \"Teddy, I'm scared.\"\nThe book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile."
-        },
-        {
-          "role": "user",
-          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words teddy bear sleep\n\nmake sure the story contains a dialogue\n\nkeep story coherent and gramatically correct"
         }
       ]
     }

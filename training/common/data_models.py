@@ -31,7 +31,7 @@ class StoryPrompt(BaseModel):
     selected_words: Dict[str, str] = Field(description="Selected words for the story")
     additional_condition: Optional[str] = Field(default=None, description="Additional story condition")
     full_prompt: str = Field(description="Complete formatted prompt")
-    k_shot_examples: List[Dict[str, str]] = Field(default_factory=list, description="K-shot examples")
+    k_shot_examples: List['KShotExample'] = Field(default_factory=list, description="K-shot examples")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
