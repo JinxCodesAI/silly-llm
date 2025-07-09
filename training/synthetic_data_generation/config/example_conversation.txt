@@ -38,7 +38,7 @@ PROMPT:
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
 containing words dad smile warm
 make sure story has scary elements but ends well
-keep story coherent and gramatically correct
+keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)
 
 RESPONSE:
 
@@ -58,7 +58,7 @@ PROMPT:
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
 containing words frog blink soft
 make sure story do not have sad elements and ends well
-keep story coherent and gramatically correct
+keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)
 
 
 RESPONSE:
@@ -77,7 +77,7 @@ PROMPT:
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
 containing words frog point cloudy
 make sure the story contains a dialogue
-keep story coherent and gramatically correct
+keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)
 
 RESPONSE:
 
@@ -87,3 +87,18 @@ Clouds just hug them tight.” Finley blinked. “Clouds… hug?” “Mm-hmm,�
 Finley pointed again. “Look! Clouds… make shapes!” A tiny smile grew. “A starfish!” Mama laughed. “Goodnight, my dreamer.” 
 He snuggled his blanket, whispering, “Mama? Stay till stars wink?” “Always,” she said, patting his back. Finley sighed, warm inside. 
 “Night-night, sky.” And in his dreams, he jumped through clouds, chasing twinkling stars—happy, giggly, *free*.
+
+PROMPT:
+
+Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
+containing words airplane sashay sparkly
+make sure story convey a clear moral value
+keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)
+
+RESPONSE:
+Benny the bear held his sparkly airplane tight. “Mine!” he growled, stomping past his friends. The airplane sashayed high, 
+wings glittering in the sun. “Wow!” squeaked Lila, the rabbit. “Can I play?” “Nope!” Benny said, puffing his cheeks. 
+“Only *me*!” But when his airplane zoomed too far and landed in a tree, Benny wailed. “My sparkly friend!” Lila peeked up. 
+“Hmm… maybe I can climb?” “Please?” sniffled Benny, ears drooping. Lila sashayed up the trunk, grabbed the plane, and slid 
+down. “Here!” she smiled. Benny blushed. “But… I didn’t share.” Lila twirled. “Sharing’s how we *sparkle* together!” 
+Benny handed her the plane. “You fly it too!” They giggled, chasing it through clover fields.

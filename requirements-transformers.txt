@@ -1,6 +1,15 @@
 # Dependencies for local transformers models
+
+torch==2.6.0
+transformers==4.53.1
+accelerate==1.8.1
+bitsandbytes==0.46.1
+flash-attn==2.7.3
+psutil==7.0.0
 pydantic>=2.0.0
-torch>=2.0.0
-transformers>=4.30.0
-accelerate>=0.20.0
-safetensors>=0.3.0
+safetensors
+
+# Optional dependencies for enhanced performance
+optimum==1.26.1
+auto-gptq==0.7.1
+
