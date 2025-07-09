@@ -56,10 +56,10 @@ As Luna snuggled into her warm blankets, Dad’s smile made her heart feel sunny
 PROMPT:
 
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
-containing words "door", "warm", "snuggle"
-make sure the story contains a dialogue
-
+containing words frog blink soft
+make sure story do not have sad elements and ends well
 keep story coherent and gramatically correct
+
 
 RESPONSE:
 
