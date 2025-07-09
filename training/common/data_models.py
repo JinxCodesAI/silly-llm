@@ -55,6 +55,57 @@ class KShotExample(BaseModel):
     content: str = Field(description="Content of the message")
 
 
+class LLMMessage(BaseModel):
+    """Individual message in a conversation."""
+    role: str = Field(description="Message role: 'user', 'assistant', or 'system'")
+    content: str = Field(description="Message content")
+
+
+class LLMRequest(BaseModel):
+    """Request structure for LLM providers."""
+    messages: List[LLMMessage] = Field(description="Conversation messages")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Request metadata")
+
+    @classmethod
+    def from_story_prompt(cls, prompt: 'StoryPrompt') -> "LLMRequest":
+        """Create LLMRequest from StoryPrompt with k-shot examples."""
+        messages = []
+
+        # Add k-shot examples in order
+        for example in prompt.k_shot_examples:
+            messages.append(LLMMessage(role=example.role, content=example.content))
+
+        # Add the current prompt as user message
+        messages.append(LLMMessage(role="user", content=prompt.full_prompt))
+
+        return cls(
+            messages=messages,
+            metadata={
+                "prompt_id": prompt.prompt_id,
+                "selected_words": prompt.selected_words,
+                "additional_condition": prompt.additional_condition,
+                "k_shot_count": len(prompt.k_shot_examples)
+            }
+        )
+
+    def to_simple_prompt(self) -> str:
+        """Fallback conversion to simple string for legacy support."""
+        if len(self.messages) == 1 and self.messages[0].role == "user":
+            return self.messages[0].content
+
+        # Format as simple conversation
+        parts = []
+        for msg in self.messages:
+            if msg.role == "user":
+                parts.append(f"User: {msg.content}")
+            elif msg.role == "assistant":
+                parts.append(f"Assistant: {msg.content}")
+            elif msg.role == "system":
+                parts.append(f"System: {msg.content}")
+
+        return "\n\n".join(parts)
+
+
 class ConversationExample(BaseModel):
     """Represents a complete conversation example."""
     messages: List[KShotExample] = Field(description="List of messages in the conversation")

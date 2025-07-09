@@ -8,7 +8,7 @@ import logging
 
 from ...common.data_models import (
     StoryPrompt, GeneratedStory, GenerationConfig,
-    GenerationResult, ValidationResult
+    GenerationResult, ValidationResult, LLMRequest
 )
 from ...common.llm_providers import LLMProvider
 from ...common.utils import validate_story, clean_generated_text, count_words
@@ -58,43 +58,18 @@ class BatchProcessor:
             )
         
         logger.info(f"Processing batch of {len(prompts)} prompts")
-        
-        # Prepare messages for chat template
-        messages_batch = []
-        for prompt in prompts:
-            if prompt.k_shot_examples and hasattr(self.llm_provider, 'tokenizer') and self.llm_provider.tokenizer:
-                # Convert k-shot examples to message format
-                messages = []
-                for example in prompt.k_shot_examples:
-                    messages.append({"role": example.role, "content": example.content})
-                # Add the actual prompt
-                messages.append({"role": "user", "content": prompt.full_prompt})
 
-                # Apply chat template if available
-                try:
-                    formatted_text = self.llm_provider.tokenizer.apply_chat_template(
-                        messages,
-                        tokenize=False,
-                        add_generation_prompt=True,
-                        enable_thinking=False
-                    )
-                    messages_batch.append(formatted_text)
-                except Exception:
-                    # Fallback to simple concatenation
-                    formatted_text = self._format_messages_simple(messages)
-                    messages_batch.append(formatted_text)
-            else:
-                # No k-shot examples or no tokenizer, use prompt directly
-                messages_batch.append(prompt.full_prompt)
+        # Convert StoryPrompts to LLMRequests - clean, no provider-specific hacks!
+        requests = [LLMRequest.from_story_prompt(prompt) for prompt in prompts]
         
         # Record start time and memory
         start_time = time.time()
         start_memory = self.llm_provider.get_memory_usage()
         
         try:
-            # Generate stories
+            # Generate stories using the new LLMRequest interface
             generated_texts = await self.llm_provider.generate_batch(
-                messages_batch, self.generation_config
+                requests, self.generation_config
             )
             
             generation_time = time.time() - start_time
@@ -144,18 +119,6 @@ class BatchProcessor:
         except Exception as e:
             logger.error(f"Batch processing failed: {e}")
             raise
-
-    def _format_messages_simple(self, messages: List[Dict[str, str]]) -> str:
-        """Simple fallback message formatting when chat template is not available."""
-        formatted_parts = []
-        for message in messages:
-            role = message['role']
-            content = message['content']
-            if role == "user":
-                formatted_parts.append(f"User: {content}")
-            elif role == "assistant":
-                formatted_parts.append(f"Assistant: {content}")
-        return "\n\n".join(formatted_parts)
 
     def _create_story_from_generation(self,
                                     prompt: StoryPrompt,

@@ -7,19 +7,19 @@ import logging
 import os
 import asyncio
 
-from .data_models import GenerationConfig, GeneratedStory, KShotExample
+from .data_models import GenerationConfig, GeneratedStory, KShotExample, LLMRequest
 
 logger = logging.getLogger(__name__)
 
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
-    
+
     @abstractmethod
-    async def generate_batch(self, prompts: List[str], config: GenerationConfig) -> List[str]:
-        """Generate responses for a batch of prompts."""
+    async def generate_batch(self, requests: List[LLMRequest], config: GenerationConfig) -> List[str]:
+        """Generate responses for a batch of requests."""
         pass
-    
+
     @abstractmethod
     def get_capabilities(self) -> Dict[str, Any]:
         """Get provider capabilities and metadata."""
@@ -83,9 +83,9 @@ class TransformersProvider(LLMProvider):
         self._initialized = True
         logger.info(f"Model loaded on device: {self.model.device}")
     
-    async def generate_batch(self, prompts: List[str], config: GenerationConfig) -> List[str]:
-        """Generate responses for a batch of prompts using efficient batching."""
-        if not prompts:
+    async def generate_batch(self, requests: List[LLMRequest], config: GenerationConfig) -> List[str]:
+        """Generate responses for a batch of requests using efficient batching."""
+        if not requests:
             return []
 
         # Ensure model is loaded
@@ -93,9 +93,32 @@ class TransformersProvider(LLMProvider):
 
         import torch
 
+        # Convert LLMRequest objects to text format
+        texts_batch = []
+        for request in requests:
+            messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
+            if self.tokenizer.chat_template:
+                try:
+                    text = self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        enable_thinking=False
+                    )
+                except Exception as e:
+                    logger.warning(f"Chat template failed, using fallback: {e}")
+                    # Fallback to simple concatenation
+                    text = request.to_simple_prompt()
+            else:
+                # Fallback to simple concatenation
+                text = request.to_simple_prompt()
+
+            texts_batch.append(text)
+
         # Prepare batch inputs
         inputs = self.tokenizer(
-            prompts,
+            texts_batch,
             return_tensors="pt",
             padding=True,
             truncation=True,
@@ -138,25 +161,7 @@ class TransformersProvider(LLMProvider):
         
         return generated_texts
     
-    def generate_with_messages(self, messages_batch: List[List[Dict[str, str]]], config: GenerationConfig) -> List[str]:
-        """Generate responses using chat template format."""
-        # Ensure model is loaded
-        self._ensure_initialized()
 
-        # Convert messages to text using chat template
-        texts_batch = []
-        for messages in messages_batch:
-            text = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False  # Disable thinking for Qwen models
-            )
-            texts_batch.append(text)
-
-        # Use the regular batch generation
-        import asyncio
-        return asyncio.run(self.generate_batch(texts_batch, config))
     
     def get_memory_usage(self) -> float:
         """Get current GPU memory usage in GB."""
@@ -202,25 +207,29 @@ class MockLLMProvider(LLMProvider):
         self.generation_count = 0
         self.tokenizer = None  # Mock providers don't have real tokenizers
 
-    async def generate_batch(self, prompts: List[str], config: GenerationConfig) -> List[str]:
+    async def generate_batch(self, requests: List[LLMRequest], config: GenerationConfig) -> List[str]:
         """Generate mock responses."""
-        self.generation_count += len(prompts)
+        self.generation_count += len(requests)
 
         # Generate simple mock stories
         mock_responses = []
-        for i, prompt in enumerate(prompts):
+        for i, request in enumerate(requests):
+            # Analyze k-shot examples for better mock responses
+            k_shot_context = [msg for msg in request.messages if msg.role == "assistant"]
+            current_prompt = request.messages[-1].content if request.messages else ""
+
             # Extract words from prompt if possible
             words = []
-            if "containing words" in prompt:
+            if "containing words" in current_prompt:
                 # Simple extraction - look for quoted words or common patterns
                 import re
-                word_matches = re.findall(r'"([^"]*)"', prompt)
+                word_matches = re.findall(r'"([^"]*)"', current_prompt)
                 if not word_matches:
-                    word_matches = re.findall(r'\b\w+\b', prompt.split("containing words")[1].split("\n")[0])
+                    word_matches = re.findall(r'\b\w+\b', current_prompt.split("containing words")[1].split("\n")[0])
                 words = word_matches[:3] if word_matches else ["cat", "happy", "sleep"]
 
-            # Generate a simple story
-            story = self._generate_mock_story(words, i)
+            # Generate a mock story considering k-shot context
+            story = self._generate_mock_story_with_context(words, i, k_shot_context)
             mock_responses.append(story)
 
         # Simulate some processing time
@@ -247,6 +256,31 @@ class MockLLMProvider(LLMProvider):
         word3 = words[2] if len(words) > 2 else "happy"
 
         return template.format(word1, word2, word3)
+
+    def _generate_mock_story_with_context(self, words: List[str], index: int, k_shot_context: List) -> str:
+        """Generate a mock story considering k-shot context."""
+        # If we have k-shot examples, try to mimic their style
+        if k_shot_context:
+            # Analyze the k-shot examples for patterns
+            context_length = sum(len(msg.content.split()) for msg in k_shot_context)
+            avg_length = context_length // len(k_shot_context) if k_shot_context else 50
+
+            # Generate a story with similar length characteristics
+            base_story = self._generate_mock_story(words, index)
+
+            # Adjust length to match k-shot examples
+            if avg_length < 30:
+                # Shorter story
+                sentences = base_story.split('. ')
+                return '. '.join(sentences[:2]) + '.'
+            elif avg_length > 80:
+                # Longer story
+                return base_story + " And they all lived happily ever after in their magical world."
+            else:
+                return base_story
+        else:
+            # No k-shot context, use regular generation
+            return self._generate_mock_story(words, index)
 
     def get_memory_usage(self) -> float:
         """Get mock memory usage (always 0)."""
@@ -298,9 +332,9 @@ class OpenAICompatibleProvider(LLMProvider):
         logger.info(f"Initialized OpenAI-compatible provider with model: {self.model_name}")
         logger.info(f"API base URL: {self.api_base_url}")
 
-    async def generate_batch(self, prompts: List[str], config: GenerationConfig) -> List[str]:
-        """Generate responses for a batch of prompts using OpenAI-compatible API."""
-        if not prompts:
+    async def generate_batch(self, requests: List[LLMRequest], config: GenerationConfig) -> List[str]:
+        """Generate responses for a batch of requests using OpenAI-compatible API."""
+        if not requests:
             return []
 
         try:
@@ -311,20 +345,20 @@ class OpenAICompatibleProvider(LLMProvider):
                 "Install it with: pip install httpx"
             ) from e
 
-        logger.info(f"Generating {len(prompts)} responses using OpenAI-compatible API")
+        logger.info(f"Generating {len(requests)} responses using OpenAI-compatible API")
 
-        # Process prompts in a loop to simulate batch generation
+        # Process requests in a loop to simulate batch generation
         responses = []
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            for i, prompt in enumerate(prompts):
+            for i, request in enumerate(requests):
                 try:
-                    response = await self._generate_single(client, prompt, config)
+                    response = await self._generate_single(client, request, config)
                     responses.append(response)
-                    logger.debug(f"Generated response {i+1}/{len(prompts)}")
+                    logger.debug(f"Generated response {i+1}/{len(requests)}")
 
                     # Small delay to avoid rate limiting
-                    if i < len(prompts) - 1:
+                    if i < len(requests) - 1:
                         await asyncio.sleep(0.1)
 
                 except Exception as e:
@@ -332,19 +366,20 @@ class OpenAICompatibleProvider(LLMProvider):
                     # Add empty response to maintain batch size
                     responses.append("")
 
-        self.generation_count += len(prompts)
+        self.generation_count += len(requests)
         logger.info(f"Completed batch generation: {len([r for r in responses if r])} successful")
 
         return responses
 
-    async def _generate_single(self, client: "httpx.AsyncClient", prompt: str, config: GenerationConfig) -> str:
+    async def _generate_single(self, client: "httpx.AsyncClient", request: LLMRequest, config: GenerationConfig) -> str:
         """Generate a single response using the API."""
+        # Convert LLMRequest messages directly to OpenAI format - FIXES THE CRITICAL BUG!
+        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
         # Prepare the request payload
         payload = {
             "model": self.model_name,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": messages,  # ← PROPER K-SHOT SUPPORT!
             "max_tokens": config.max_new_tokens,
             "temperature": config.temperature,
             "top_p": config.top_p,
