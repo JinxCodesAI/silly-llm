@@ -208,6 +208,7 @@ class StoryGenerator:
             # Process this batch
             try:
                 logger.info(f"Processing batch {batch_idx + 1}/{total_batches}")
+                
                 result = await self.batch_processor.process_batch_with_ids(
                     batch_prompts, batch_idx
                 )

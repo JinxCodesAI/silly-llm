@@ -46,7 +46,7 @@ class StoryGenerationConfig(BaseModel):
     """Complete configuration for story generation."""
 
     # Model configuration
-    model_name: str = Field(default="Qwen/Qwen2.5-3B-Instruct", description="Model name to use")
+    model_name: str = Field(default="Qwen/Qwen3-0.6B", description="Model name to use")
     device: str = Field(default="auto", description="Device to use (auto, cuda, cpu)")
 
     # Configuration sections
@@ -99,7 +99,7 @@ def save_config(config: StoryGenerationConfig, output_path: str):
 def create_default_config(
     vocabulary_path: str,
     output_path: str,
-    model_name: str = "Qwen/Qwen2.5-3B-Instruct",
+    model_name: str = "Qwen/Qwen3-0.6B",
     num_stories: int = 1000
 ) -> StoryGenerationConfig:
     """Create a default configuration.
@@ -127,7 +127,7 @@ def create_default_config(
 
 # Default configuration template
 DEFAULT_CONFIG_TEMPLATE = """{
-  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "model_name": "Qwen/Qwen3-0.6B",
   "device": "auto",
   "generation": {
     "batch_size": 8,

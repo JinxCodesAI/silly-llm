@@ -64,7 +64,7 @@ python -m training.synthetic_data_generation.main --mock-provider --num-stories 
 3. **Generate stories**:
    ```bash
    # Using OpenAI
-   python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-3.5-turbo --num-stories 10
+   python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-4.1-nano --num-stories 10
 
    # Using custom API (e.g., local LLM server)
    python -m training.synthetic_data_generation.main --openai-provider --api-base-url http://localhost:8000/v1 --model-name your-model --num-stories 10
@@ -215,7 +215,7 @@ export AI_API_KEY=your_api_key
 # Use OpenAI
 python -m training.synthetic_data_generation.main \
     --openai-provider \
-    --model-name "gpt-3.5-turbo" \
+    --model-name "gpt-4.1-nano" \
     --num-stories 100
 
 # Use custom API endpoint (e.g., local LLM server)

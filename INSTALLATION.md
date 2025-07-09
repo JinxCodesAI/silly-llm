@@ -16,13 +16,13 @@ python -m training.synthetic_data_generation.main --mock-provider --num-stories 
 ```bash
 pip install -r requirements-api.txt
 export AI_API_KEY=your_api_key
-python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-3.5-turbo --num-stories 10
+python -m training.synthetic_data_generation.main --openai-provider --model-name gpt-4.1-nano --num-stories 10
 ```
 
 ### 3. Local Model Generation (HuggingFace)
 ```bash
 pip install -r requirements-transformers.txt
-python -m training.synthetic_data_generation.main --model-name Qwen/Qwen2.5-3B-Instruct --num-stories 10
+python -m training.synthetic_data_generation.main --model-name Qwen/Qwen3-0.6B --num-stories 10
 ```
 
 ### 4. All Features

@@ -35,7 +35,7 @@ async def test_openai_provider():
     try:
         # Create provider
         provider = OpenAICompatibleProvider(
-            model_name="gpt-3.5-turbo",  # Default model for testing
+            model_name="gpt-4.1-nano",  # Default model for testing
             api_base_url="https://api.openai.com/v1"
         )
         
