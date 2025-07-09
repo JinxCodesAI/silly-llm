@@ -100,7 +100,7 @@ python -m training.synthetic_data_generation.main --no-k-shot --no-diversity
 
 ### Configuration Example
 ```yaml
-model_name: "Qwen/Qwen2.5-3B-Instruct"
+model_name: "Qwen/Qwen3-0.6B"
 num_stories: 1000
 generation:
   batch_size: 8
