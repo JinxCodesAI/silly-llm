@@ -168,8 +168,6 @@ cython_debug/
 # Generated data and outputs
 *.jsonl
 *.json.gz
-generated_stories/
-generated_stories.jsonl*
 sample_prompts.json
 test_stories.jsonl
 *.intermediate_*.jsonl
