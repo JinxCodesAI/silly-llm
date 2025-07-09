@@ -71,13 +71,17 @@ class TransformersProvider(LLMProvider):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
+        # Prepare model kwargs with flash attention
+        model_kwargs = (self.model_kwargs or {}).copy()
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+
         # Load model
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map=self.device if self.device != "auto" else "auto",
             trust_remote_code=True,
-            **self.model_kwargs
+            **model_kwargs
         )
 
         self._initialized = True
