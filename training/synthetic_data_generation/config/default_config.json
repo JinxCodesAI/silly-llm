@@ -3,7 +3,7 @@
   "device": "auto",
   "generation": {
     "batch_size": 8,
-    "max_new_tokens": 512,
+    "max_new_tokens": 4096,
     "temperature": 0.8,
     "top_p": 0.9,
     "do_sample": true,

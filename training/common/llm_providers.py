@@ -310,7 +310,7 @@ class MockLLMProvider(LLMProvider):
 class OpenAICompatibleProvider(LLMProvider):
     """OpenAI-compatible API provider for remote model inference."""
 
-    def __init__(self, model_name: str, api_base_url: str = "https://api.openai.com/v1", **kwargs):
+    def __init__(self, model_name: str, api_base_url: str = "https://openrouter.ai/api/v1", **kwargs):
         """Initialize OpenAI-compatible provider.
 
         Args:

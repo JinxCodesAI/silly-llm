@@ -139,9 +139,9 @@ CONFIGURATION:
     parser.add_argument(
         "--api-base-url",
         type=str,
-        default="https://api.openai.com/v1",
+        default="https://openrouter.ai/api/v1",
         help="Base URL for OpenAI-compatible API. Examples: "
-             "OpenAI: https://api.openai.com/v1, "
+             "OpenRouter:https://openrouter.ai/api/v1, "
              "Together AI: https://api.together.xyz/v1, "
              "Local server: http://localhost:8000/v1"
     )
@@ -283,6 +283,7 @@ CONFIGURATION:
         logger.info(f"  Device: {config.device}")
     logger.info(f"  Stories to generate: {config.generation_settings.num_stories}")
     logger.info(f"  Batch size: {config.generation.batch_size}")
+    logger.info(f"  Max new tokens: {config.generation.max_new_tokens}")
     logger.info(f"  K-shot examples: {config.generation_settings.use_k_shot} (count: {config.generation_settings.k_shot_count})")
     logger.info(f"  Word diversity: {config.generation_settings.ensure_diversity}")
     logger.info(f"  Output path: {config.output_settings.output_path}")

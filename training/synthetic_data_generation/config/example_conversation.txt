@@ -36,58 +36,54 @@ Verbs
 PROMPT:
 
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
-containing words "dream", "shovel", "eat"
-make sure story has sad elements but ends well
-
+containing words dad smile warm
+make sure story has scary elements but ends well
 keep story coherent and gramatically correct
 
 RESPONSE:
 
-Benny the bunny found a red shovel one night. He wanted to eat a berry, but all were gone. Sadly, he went to bed.
-That night, Benny dreamed! His shovel glowed, ding-ding! It carried him on a boat to a moonlit garden. There, golden berries sparkled. Benny dug a soft hill with the shovel, lifting a bunch of sweet blueberries. He ate them, splish-splash-giggle!
-Morning came. Benny peeked. In his real garden, under a tree, he saw a green leaf–covered box. Inside: squishy blueberries! He nibbled one, yum! The shovel, now muddy, snuggled by a stone.
-Bunny smiled. "You are magic, Shovel!" And the shovel thumped, like a tiny drum.
-The tale ends here: Benny full, cozy. The shovel dreams of new digs. The sun shines, bright.
+One night, Luna woke up. “Dad?” she called, her voice wobbly. Dad peeked through the door. 
+“What’s wrong, little star?” “I heard a *growl*!” Luna whispered. Dad smiled. “Let’s check it out.” 
+He scooped her up, warm in his arms. They tiptoed to the closet. “Boo!” A tiny, shivering monster popped out! 
+Luna gasped. “It’s okay,” Dad said gently. “Maybe it’s lost?” “Hi,” Luna said shyly. “Are you scared too?” 
+The monster sniffled. “I don’t like the dark!” Dad chuckled. “Dark’s just light’s bedtime!”
+He flicked on a nightlight, casting soft shadows. “See? No growls here,” Dad winked. 
+Luna hugged him tight. “Snuggle time!” The monster waved goodbye, slipping under Luna’s bed. 
+“Wait!” she said. “Can he stay? Just tonight?” Dad nodded. “One brave girl, one brave monster. Perfect.” 
+As Luna snuggled into her warm blankets, Dad’s smile made her heart feel sunny. “Night-night,” he whispered. 
+“Night-night, Dad,” Luna smiled. “Love you.” And in her cozy room, she knew: even shadows can’t hide love.
 
 PROMPT:
 
 Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
-containing words "door", "warm", "snuggle"
+containing words frog blink soft
+make sure story do not have sad elements and ends well
+keep story coherent and gramatically correct
+
+
+RESPONSE:
+
+Freddy the frog sat by the pond, his green belly *soft* in the moonlight. “I’ll hop home soon,” he said, but first he blinked at 
+the stars. “Wink-wink!” he giggled. Suddenly, a tiny *blink*! A baby firefly zoomed by. “Lost!” it buzzed. Freddy smiled. 
+“I’ll help!” He leapt onto lily pads, calling, “This way, little light!” The firefly blinked again, following Freddy through the 
+reeds until—*ding!*—they found her swarm! The fireflies twinkled brightly, wrapping Freddy in glowing hugs. “Now *you* blink!” 
+the baby firefly chirped. Freddy shut his eyes tight, then opened them wide. “Blink!” he croaked. The fireflies danced around him, 
+laughing. But Freddy yawned. “Time for bed,” he said. They lit up his lilypad path home. His lily bed was *soft*, 
+his dreams full of sparkles and hops. “Blink again tomorrow!” he whispered as he snuggled under a leaf blanket. 
+The fireflies blinked yes. The end: Freddy sleeps warm, the night glows bright, and tomorrow waits for giggles.
+
+PROMPT:
+
+Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
+containing words frog point cloudy
 make sure the story contains a dialogue
-
 keep story coherent and gramatically correct
 
 RESPONSE:
 
-Benny blinked his sleepy eyes. "Dad, not tired!" he whispered.
-Mom tiptoed through the door. "Night-night, little bunny," she said.
-"But the dark is cold!" Benny sighed. He snuggled his fluffy teddy, Blinky.
-Mom smiled. She pointed out the window. "See that tiny star? It’s warm. It watches you."
-Benny peeked. "Is it... a golden light?"
-She kissed his forehead. "Big dream awaits. Snuggle under your bed’s blue blanket. It’s magic!"
-He hugged Blinky tight. Snuggle, snuggle. Benny’s toes warmed.
-"Mom, can we trace stars?"
-"Shh," she giggled, "after sleep. Big dreams wear little socks!"
-Benny yawned, yawning wide. "Can... Dad read after?"
-"First, dream-bumps!" Mom whispered.
-The frogs hopped. The horses galloped.
-Benny giggled, pointing. "Dad, play again!"
-Soon, he blinked. Little by little, silence came.
-In the soft dark, Blinky whispered, "Sweet dreams, brave boy. Count stars, not fears."
-Benny patted his warm blanket. "Night. Tired. Hug Blinky. Dream..."
-He slid down, slid down... into a cozy, bright castle of dreams.
-
-PROMPT:
-
-Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old
-containing words "door", "warm", "snuggle"
-make sure story convey a clear moral value
-
-keep story coherent and gramatically correct
-
-RESPONSE:
-
-Lily couldn’t sleep one starry night. In her warm pajamas, she tiptoed to the door of her room and peeked out. The house was quiet—just the moon glowing through the window. She grabbed her teddy bear and a book, then crept to the couch.
-Suddenly, the book started to giggle. It whispered, “Lily, let’s dream!” The book glowed bright, and out jumped blocks, a bunny, and a baby horse. They danced in the air, painting the room with colorful clouds. Lily’s eyes blinked in surprise.
-But soon, her toes were cold. The blocks fell, the bunny hid, and the horse galloped away. Lily shivered and whispered, “Teddy, I’m scared.”
-The book opened softly. A magical door appeared, leading her back to her cozy bed. Momma greets her with a warm hug, and Lily snuggled into fluffy pillows. The moon watched with a smile.
+Finley the frog frowned. “Sky sad,” he said, hopping to his lily pad bed. “Why?” asked Mama, tucking him in with a leaf blanket. 
+“Stars gone! Cloudy, cloudy!” he croaked, pointing at the gray sky. Mama smiled. “Stars still there, silly hopper! 
+Clouds just hug them tight.” Finley blinked. “Clouds… hug?” “Mm-hmm,” she whispered. “Now, close your eyes. Dream where clouds float.” 
+Finley pointed again. “Look! Clouds… make shapes!” A tiny smile grew. “A starfish!” Mama laughed. “Goodnight, my dreamer.” 
+He snuggled his blanket, whispering, “Mama? Stay till stars wink?” “Always,” she said, patting his back. Finley sighed, warm inside. 
+“Night-night, sky.” And in his dreams, he jumped through clouds, chasing twinkling stars—happy, giggly, *free*.
