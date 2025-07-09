@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
+from datetime import datetime
 
 from ...common.data_models import (
     Vocabulary, GenerationConfig, GeneratedStory, GenerationResult
@@ -249,6 +250,11 @@ class StoryGenerator:
     
     def _save_stories(self, stories: List[GeneratedStory], output_path: str):
         """Save stories to file."""
+        # Add timestamp to filename before extension
+        path_obj = Path(output_path)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamped_path = path_obj.with_stem(f"{path_obj.stem}_{timestamp}")
+
         # Convert to dictionaries for JSON serialization
         story_dicts = []
         for story in stories:
@@ -257,7 +263,7 @@ class StoryGenerator:
             if 'created_at' in story_dict:
                 story_dict['created_at'] = story_dict['created_at'].isoformat()
             story_dicts.append(story_dict)
-        save_stories_jsonl(story_dicts, output_path)
+        save_stories_jsonl(story_dicts, str(timestamped_path))
     
     def _save_metadata(self, metadata: Dict[str, Any], output_path: Path):
         """Save generation metadata."""
