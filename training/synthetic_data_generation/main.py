@@ -139,9 +139,9 @@ CONFIGURATION:
     parser.add_argument(
         "--api-base-url",
         type=str,
-        default="https://api.openai.com/v1",
+        default="https://openrouter.ai/api/v1",
         help="Base URL for OpenAI-compatible API. Examples: "
-             "OpenAI: https://api.openai.com/v1, "
+             "OpenRouter:https://openrouter.ai/api/v1, "
              "Together AI: https://api.together.xyz/v1, "
              "Local server: http://localhost:8000/v1"
     )
