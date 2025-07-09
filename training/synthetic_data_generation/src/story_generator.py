@@ -206,31 +206,57 @@ class StoryGenerator:
 
                 batch_prompts.append(prompt)
 
-            # Process this batch
-            try:
-                logger.info(f"Processing batch {batch_idx + 1}/{total_batches}")
-                
-                result = await self.batch_processor.process_batch_with_ids(
-                    batch_prompts, batch_idx
-                )
-                all_results.append(result)
-                all_stories.extend(result.stories)
+            # Process this batch with retry logic
+            success = False
+            max_retries = 3
+            retry_delay = 5.0
 
-                # Progress callback
-                progress_callback(len(all_stories), num_stories)
+            for attempt in range(max_retries + 1):
+                try:
+                    logger.info(f"Processing batch {batch_idx + 1}/{total_batches}" +
+                               (f" (attempt {attempt + 1})" if attempt > 0 else ""))
 
-                # Save intermediate results if requested
-                if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
-                    intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
-                    self._save_stories(all_stories, intermediate_path)
+                    # Use adaptive batch processing for better memory handling
+                    result = await self.batch_processor.process_batch_with_adaptive_size(
+                        batch_prompts, batch_idx
+                    )
+                    all_results.append(result)
+                    all_stories.extend(result.stories)
+                    success = True
 
-                # Clear memory between batches
-                self.llm_provider.clear_memory()
+                    # Progress callback
+                    progress_callback(len(all_stories), num_stories)
 
-            except Exception as e:
-                logger.error(f"Failed to process batch {batch_idx + 1}: {e}")
-                # Continue with next batch
-                continue
+                    # Save intermediate results if requested
+                    if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
+                        intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
+                        self._save_stories(all_stories, intermediate_path)
+
+                    # Clear memory between batches
+                    self.llm_provider.clear_memory()
+
+                    # Force garbage collection
+                    import gc
+                    gc.collect()
+
+                    break
+
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Batch {batch_idx + 1} failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                        logger.info(f"Retrying batch {batch_idx + 1} in {retry_delay} seconds...")
+
+                        # Clear memory before retry
+                        self.llm_provider.clear_memory()
+
+                        # Wait before retry
+                        import asyncio
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        logger.error(f"Batch {batch_idx + 1} failed after {max_retries + 1} attempts: {e}")
+
+            if not success:
+                logger.error(f"Skipping batch {batch_idx + 1} after all retry attempts failed")
         
         # Final processing is already done in the loop above
         

@@ -96,74 +96,100 @@ class TransformersProvider(LLMProvider):
         self._ensure_initialized()
 
         import torch
+        import gc
 
-        # Convert LLMRequest objects to text format
-        texts_batch = []
-        for request in requests:
-            messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        # Initialize variables for cleanup
+        inputs = None
+        outputs = None
+        generated_texts = []
 
-            if self.tokenizer.chat_template:
-                try:
-                    text = self.tokenizer.apply_chat_template(
-                        messages,
-                        tokenize=False,
-                        add_generation_prompt=True,
-                        enable_thinking=False
-                    )
-                except Exception as e:
-                    logger.warning(f"Chat template failed, using fallback: {e}")
+        try:
+            # Convert LLMRequest objects to text format
+            texts_batch = []
+            for request in requests:
+                messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+
+                if self.tokenizer.chat_template:
+                    try:
+                        text = self.tokenizer.apply_chat_template(
+                            messages,
+                            tokenize=False,
+                            add_generation_prompt=True,
+                            enable_thinking=False
+                        )
+                    except Exception as e:
+                        logger.warning(f"Chat template failed, using fallback: {e}")
+                        # Fallback to simple concatenation
+                        text = request.to_simple_prompt()
+                else:
                     # Fallback to simple concatenation
                     text = request.to_simple_prompt()
-            else:
-                # Fallback to simple concatenation
-                text = request.to_simple_prompt()
 
-            texts_batch.append(text)
+                texts_batch.append(text)
 
-        # Prepare batch inputs
-        inputs = self.tokenizer(
-            texts_batch,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            max_length=2048  # Reasonable input limit
-        ).to(self.model.device)
-        
-        # Generation parameters
-        generation_kwargs = {
-            "max_new_tokens": config.max_new_tokens,
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-            "do_sample": config.do_sample,
-            "repetition_penalty": config.repetition_penalty,
-            "pad_token_id": self.tokenizer.eos_token_id,
-            "use_cache": config.use_cache,
-            "return_dict_in_generate": True,
-            "output_scores": False
-        }
-        
-        start_time = time.time()
-        
-        with torch.no_grad():
-            outputs = self.model.generate(**inputs, **generation_kwargs)
-        
-        generation_time = time.time() - start_time
-        
-        # Decode generated text
-        generated_texts = []
-        for i, output_ids in enumerate(outputs.sequences):
-            # Find input length for this sequence
-            input_length = inputs["input_ids"][i].ne(self.tokenizer.pad_token_id).sum().item()
-            
-            # Extract only the generated tokens
-            generated_tokens = output_ids[input_length:]
-            generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
-            
-            generated_texts.append(generated_text.strip())
-        
-        logger.info(f"Generated {len(generated_texts)} responses in {generation_time:.2f}s")
-        
-        return generated_texts
+            # Prepare batch inputs
+            inputs = self.tokenizer(
+                texts_batch,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=2048  # Reasonable input limit
+            ).to(self.model.device)
+
+            # Generation parameters
+            generation_kwargs = {
+                "max_new_tokens": config.max_new_tokens,
+                "temperature": config.temperature,
+                "top_p": config.top_p,
+                "do_sample": config.do_sample,
+                "repetition_penalty": config.repetition_penalty,
+                "pad_token_id": self.tokenizer.eos_token_id,
+                "use_cache": config.use_cache,
+                "return_dict_in_generate": True,
+                "output_scores": False
+            }
+
+            start_time = time.time()
+
+            with torch.no_grad():
+                outputs = self.model.generate(**inputs, **generation_kwargs)
+
+            generation_time = time.time() - start_time
+
+            # Decode generated text
+            for i, output_ids in enumerate(outputs.sequences):
+                # Find input length for this sequence
+                input_length = inputs["input_ids"][i].ne(self.tokenizer.pad_token_id).sum().item()
+
+                # Extract only the generated tokens
+                generated_tokens = output_ids[input_length:]
+                generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+                generated_texts.append(generated_text.strip())
+
+            logger.info(f"Generated {len(generated_texts)} responses in {generation_time:.2f}s")
+
+            return generated_texts
+
+        finally:
+            # Explicit cleanup of tensors and variables
+            if inputs is not None:
+                del inputs
+            if outputs is not None:
+                del outputs
+
+            # Clear intermediate variables
+            if 'texts_batch' in locals():
+                del texts_batch
+            if 'generation_kwargs' in locals():
+                del generation_kwargs
+
+            # Force garbage collection
+            gc.collect()
+
+            # Clear CUDA cache if available
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
     
 
     
@@ -180,13 +206,24 @@ class TransformersProvider(LLMProvider):
         return 0.0
 
     def clear_memory(self):
-        """Clear GPU memory cache."""
+        """Clear GPU memory cache and force garbage collection."""
         if not self._initialized:
             return
         try:
             import torch
+            import gc
+
             if torch.cuda.is_available():
+                # Clear CUDA cache
                 torch.cuda.empty_cache()
+                # Reset peak memory stats for better tracking
+                torch.cuda.reset_peak_memory_stats()
+                # Synchronize to ensure all operations are complete
+                torch.cuda.synchronize()
+
+            # Force garbage collection to free Python objects
+            gc.collect()
+
         except ImportError:
             pass
     
