@@ -1,15 +1,15 @@
 {
-  "_comment": "Example configuration for all providers - modify as needed",
-  "model_name": "Qwen/Qwen2.5-3B-Instruct",
-  "device": "auto",
+  "_comment": "Configuration for OpenAI-compatible API providers",
+  "model_name": "gpt-3.5-turbo",
+  "device": "api",
   "generation": {
-    "batch_size": 8,
-    "max_new_tokens": 512,
+    "batch_size": 5,
+    "max_new_tokens": 200,
     "temperature": 0.8,
     "top_p": 0.9,
     "do_sample": true,
-    "repetition_penalty": 1.1,
-    "use_cache": true
+    "repetition_penalty": 1.0,
+    "use_cache": false
   },
   "data_paths": {
     "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
@@ -17,20 +17,20 @@
     "conversation_examples_path": "training/synthetic_data_generation/config/example_conversation.txt"
   },
   "generation_settings": {
-    "num_stories": 100,
+    "num_stories": 50,
     "k_shot_count": 2,
     "use_k_shot": true,
     "ensure_diversity": true
   },
   "output_settings": {
-    "output_path": "generated_stories.jsonl",
+    "output_path": "openai_generated_stories.jsonl",
     "save_intermediate": true,
-    "intermediate_save_interval": 50
+    "intermediate_save_interval": 25
   },
   "validation_settings": {
     "validate_stories": true,
     "min_words": 50,
-    "max_words": 300
+    "max_words": 250
   },
   "logging": {
     "log_level": "INFO"
