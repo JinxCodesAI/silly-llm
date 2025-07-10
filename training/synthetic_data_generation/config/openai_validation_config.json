@@ -1,0 +1,52 @@
+{
+  "_comment": "Example configuration with OpenAI-compatible validation",
+  "model_name": "gpt-3.5-turbo",
+  "device": "auto",
+  "generation": {
+    "batch_size": 4,
+    "max_new_tokens": 512,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.1,
+    "use_cache": true
+  },
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "conversation_examples_path": "training/synthetic_data_generation/config/example_conversation.txt"
+  },
+  "generation_settings": {
+    "num_stories": 20,
+    "k_shot_count": 2,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "openai_validated_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 10
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 50,
+    "max_words": 300,
+    "custom_validation": {
+      "model_name": "gpt-3.5-turbo",
+      "provider": "OpenAICompatible",
+      "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
+      "generation": {
+        "max_new_tokens": 128,
+        "temperature": 0.1,
+        "top_p": 0.9
+      }
+    }
+  },
+  "k_shot_settings": {
+    "selector_type": "random",
+    "use_conversation_examples": true
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}

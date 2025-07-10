@@ -1,0 +1,51 @@
+{
+  "_comment": "Test configuration with mock validation for testing",
+  "model_name": "mock-test-model",
+  "device": "mock",
+  "generation": {
+    "batch_size": 5,
+    "max_new_tokens": 150,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.0,
+    "use_cache": false
+  },
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "conversation_examples_path": "training/synthetic_data_generation/config/example_conversation.txt"
+  },
+  "generation_settings": {
+    "num_stories": 10,
+    "k_shot_count": 1,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "mock_validated_stories.jsonl",
+    "save_intermediate": false,
+    "intermediate_save_interval": 5
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 20,
+    "max_words": 200,
+    "custom_validation": {
+      "model_name": "mock-validator-model",
+      "provider": "MockProvider",
+      "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
+      "generation": {
+        "max_new_tokens": 50,
+        "temperature": 0.1
+      }
+    }
+  },
+  "k_shot_settings": {
+    "selector_type": "random",
+    "use_conversation_examples": true
+  },
+  "logging": {
+    "log_level": "DEBUG"
+  }
+}

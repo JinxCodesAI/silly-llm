@@ -41,11 +41,20 @@ class OutputSettings(BaseModel):
     intermediate_save_interval: int = Field(default=100, description="Save every N stories")
 
 
+class CustomValidationConfig(BaseModel):
+    """Configuration for custom validation."""
+    model_name: str = Field(description="Model name for validation")
+    provider: str = Field(description="Provider type (TransformersProvider, OpenAICompatible, MockProvider)")
+    validator_class: str = Field(description="Full path to validator class")
+    generation: Dict[str, Any] = Field(default_factory=dict, description="Generation parameters for validation")
+
+
 class ValidationSettings(BaseModel):
     """Story validation settings."""
     validate_stories: bool = Field(default=True, description="Validate generated stories")
     min_words: int = Field(default=50, description="Minimum words per story")
     max_words: int = Field(default=300, description="Maximum words per story")
+    custom_validation: Optional[CustomValidationConfig] = Field(default=None, description="Custom validation configuration")
 
 
 class LoggingSettings(BaseModel):
