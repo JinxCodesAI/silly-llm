@@ -295,9 +295,10 @@ class PromptGeneratorHandler(ABC):
         """Generate a story prompt based on configuration and context.
 
         Args:
-            context: Generation context including selected_words, age, complexity, etc.
-                    Must contain 'selected_words' with word1, word2, word3
-                    May contain 'prompt_id', 'target_age', etc.
+            context: Complete generation context containing:
+                    - 'config': Handler configuration (merged with any overrides)
+                    - 'artifacts': Loaded artifact data (word_list, story_features, etc.)
+                    - Any additional context data (prompt_id, target_age, etc.)
 
         Returns:
             StoryPrompt object
@@ -306,10 +307,10 @@ class PromptGeneratorHandler(ABC):
 
     @abstractmethod
     def generate_dynamic_placeholders(self, context: Dict[str, Any]) -> Dict[str, str]:
-        """Generate dynamic placeholder values based on context and artifacts.
+        """Generate dynamic placeholder values based on context.
 
         Args:
-            context: Generation context including selected_words and other parameters
+            context: Complete generation context with config and artifacts
 
         Returns:
             Dictionary mapping placeholder names to their values
@@ -323,21 +324,18 @@ class PromptGeneratorHandler(ABC):
 
     def validate_runtime(self, context: Dict[str, Any]) -> bool:
         """Validate runtime context and generated placeholders."""
-        # Base validation - check required context
-        if 'selected_words' not in context:
-            return False
-
-        selected_words = context['selected_words']
-        if not all(key in selected_words for key in ['word1', 'word2', 'word3']):
+        # Base validation - check required context structure
+        if 'config' not in context or 'artifacts' not in context:
             return False
 
         # Validate that dynamic placeholders can be generated
         try:
             placeholders = self.generate_dynamic_placeholders(context)
             # Check that all dynamic placeholders are covered
+            config = context['config']
             for placeholder in self.dynamic_placeholders:
                 placeholder_key = placeholder.strip('{}')
-                if placeholder_key not in placeholders and placeholder_key not in self.config:
+                if placeholder_key not in placeholders and placeholder_key not in config:
                     return False
             return True
         except Exception:
@@ -354,7 +352,16 @@ class PromptGeneratorHandler(ABC):
             if artifact_type == "file":
                 loaded_artifacts[name] = self._load_file_artifact(value)
             elif artifact_type == "array":
-                loaded_artifacts[name] = value
+                # Parse array if it's a JSON string, otherwise use as-is
+                if isinstance(value, str):
+                    try:
+                        loaded_artifacts[name] = json.loads(value)
+                    except json.JSONDecodeError:
+                        loaded_artifacts[name] = [value]  # Single string as array
+                else:
+                    loaded_artifacts[name] = value
+            elif artifact_type == "string":
+                loaded_artifacts[name] = str(value)
             elif artifact_type == "handler":
                 loaded_artifacts[name] = self._load_handler_artifact(value)
             else:
@@ -364,13 +371,26 @@ class PromptGeneratorHandler(ABC):
 
     def _load_file_artifact(self, file_path: str) -> Any:
         """Load artifact from file."""
-        # Implementation for loading JSON, text, etc.
-        pass
+        import json
+        import os
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Artifact file not found: {file_path}")
+
+        if file_path.endswith('.json'):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        else:
+            # Load as text file
+            with open(file_path, 'r') as f:
+                return f.read().strip()
 
     def _load_handler_artifact(self, handler_class_path: str) -> Any:
         """Load and instantiate handler class."""
-        # Implementation for dynamic class loading
-        pass
+        module_path, class_name = handler_class_path.rsplit('.', 1)
+        module = importlib.import_module(module_path)
+        handler_class = getattr(module, class_name)
+        return handler_class()
 
 class BasicBedtimeStoryHandler(PromptGeneratorHandler):
     """Handler for basic bedtime stories - simple, code-free implementation."""
@@ -381,42 +401,47 @@ class BasicBedtimeStoryHandler(PromptGeneratorHandler):
         if not self.validate_runtime(context):
             raise ValueError("Invalid runtime context for BasicBedtimeStoryHandler")
 
-        selected_words = context["selected_words"]
+        config = context["config"]
 
         # Generate dynamic placeholders
         dynamic_values = self.generate_dynamic_placeholders(context)
 
         # Combine config and dynamic values for template formatting
-        template_values = {**self.config, **dynamic_values}
+        template_values = {**config, **dynamic_values}
 
         # Format template
-        template = self.config["template"]
+        template = config["template"]
         full_prompt = template.format(**template_values)
 
         return StoryPrompt(
             prompt_id=context.get("prompt_id", f"prompt_{random.randint(100000, 999999)}"),
             template=template,
-            selected_words=selected_words,
+            selected_words=dynamic_values.get("selected_words", {}),
             additional_condition=dynamic_values.get("feature_instructions", ""),
             full_prompt=full_prompt,
             metadata={
                 "generator": "basic_bedtime_story",
-                "target_age": self.config["target_age"],
-                "max_words": self.config["max_words"]
+                "target_age": config.get("target_age"),
+                "max_words": config.get("max_words")
             }
         )
 
     def generate_dynamic_placeholders(self, context: Dict[str, Any]) -> Dict[str, str]:
         """Generate dynamic placeholder values."""
-        selected_words = context["selected_words"]
-        placeholders = {
-            "word1": selected_words["word1"],
-            "word2": selected_words["word2"],
-            "word3": selected_words["word3"]
-        }
+        artifacts = context["artifacts"]
+        placeholders = {}
+
+        # Extract words from context if available (this is just one possible use case)
+        if "selected_words" in context:
+            selected_words = context["selected_words"]
+            placeholders.update({
+                "word1": selected_words.get("word1", ""),
+                "word2": selected_words.get("word2", ""),
+                "word3": selected_words.get("word3", "")
+            })
 
         # Simple random selection from story features
-        story_features = self.artifacts.get("story_features", [])
+        story_features = artifacts.get("story_features", [])
         if story_features:
             placeholders["feature_instructions"] = random.choice(story_features)
         else:
@@ -426,7 +451,7 @@ class BasicBedtimeStoryHandler(PromptGeneratorHandler):
 
     def validate_config(self) -> bool:
         """Validate basic configuration."""
-        required_fields = ["template", "max_words", "target_age", "language", "word_count"]
+        required_fields = ["template"]
         has_required = all(field in self.config for field in required_fields)
 
         # Validate that template placeholders match dynamic_placeholders + config
@@ -457,17 +482,17 @@ class AdvancedBedtimeStoryHandler(PromptGeneratorHandler):
         if not self.validate_runtime(context):
             raise ValueError("Invalid runtime context for AdvancedBedtimeStoryHandler")
 
-        selected_words = context["selected_words"]
-        target_age = context.get("target_age", self.config["target_age"])
+        config = context["config"]
+        target_age = context.get("target_age", config.get("target_age", 3))
 
         # Generate dynamic placeholders with age-based logic
         dynamic_values = self.generate_dynamic_placeholders(context)
 
         # Apply age-based template modifications
-        template = self._get_age_appropriate_template(target_age)
+        template = self._get_age_appropriate_template(target_age, config)
 
         # Combine config and dynamic values for template formatting
-        template_values = {**self.config, **dynamic_values, "target_age": target_age}
+        template_values = {**config, **dynamic_values, "target_age": target_age}
 
         # Format template
         full_prompt = template.format(**template_values)
@@ -475,30 +500,36 @@ class AdvancedBedtimeStoryHandler(PromptGeneratorHandler):
         return StoryPrompt(
             prompt_id=context.get("prompt_id", f"prompt_{random.randint(100000, 999999)}"),
             template=template,
-            selected_words=selected_words,
+            selected_words=dynamic_values.get("selected_words", {}),
             additional_condition=dynamic_values.get("feature_instructions", ""),
             full_prompt=full_prompt,
             metadata={
                 "generator": "advanced_bedtime_story",
                 "target_age": target_age,
-                "max_words": self.config["max_words"],
+                "max_words": config.get("max_words"),
                 "feature_complexity": "advanced"
             }
         )
 
     def generate_dynamic_placeholders(self, context: Dict[str, Any]) -> Dict[str, str]:
         """Generate dynamic placeholders with age-based feature selection."""
-        selected_words = context["selected_words"]
-        target_age = context.get("target_age", self.config["target_age"])
+        config = context["config"]
+        artifacts = context["artifacts"]
+        target_age = context.get("target_age", config.get("target_age", 3))
 
-        placeholders = {
-            "word1": selected_words["word1"],
-            "word2": selected_words["word2"],
-            "word3": selected_words["word3"]
-        }
+        placeholders = {}
+
+        # Extract words from context if available
+        if "selected_words" in context:
+            selected_words = context["selected_words"]
+            placeholders.update({
+                "word1": selected_words.get("word1", ""),
+                "word2": selected_words.get("word2", ""),
+                "word3": selected_words.get("word3", "")
+            })
 
         # Age-based feature selection from story features
-        story_features = self.artifacts.get("story_features", [])
+        story_features = artifacts.get("story_features", [])
         if story_features:
             # Filter features based on age appropriateness
             if target_age < 5:
@@ -513,9 +544,9 @@ class AdvancedBedtimeStoryHandler(PromptGeneratorHandler):
 
         return placeholders
 
-    def _get_age_appropriate_template(self, age: int) -> str:
+    def _get_age_appropriate_template(self, age: int, config: Dict[str, Any]) -> str:
         """Select template based on age - this is handler-specific logic."""
-        base_template = self.config["template"]
+        base_template = config["template"]
 
         if age < 5:
             # Simpler language for younger children
@@ -751,15 +782,15 @@ class ModularTemplateManager:
 
     def create_prompt(self,
                      generator_id: str,
-                     selected_words: Dict[str, str],
                      context: Optional[Dict[str, Any]] = None,
+                     config_overrides: Optional[Dict[str, Any]] = None,
                      prompt_id: Optional[str] = None) -> StoryPrompt:
         """Create a story prompt using specified generator.
 
         Args:
             generator_id: ID of the prompt generator to use
-            selected_words: Dictionary with word1, word2, word3
-            context: Generation context (age, complexity, etc.)
+            context: Generation context (may include selected_words, target_age, etc.)
+            config_overrides: Override generator configuration
             prompt_id: Optional prompt identifier
 
         Returns:
@@ -768,31 +799,37 @@ class ModularTemplateManager:
         if prompt_id is None:
             prompt_id = f"prompt_{random.randint(100000, 999999)}"
 
-        # Prepare context with selected_words
-        context = context or {}
-        context["selected_words"] = selected_words
-        context["prompt_id"] = prompt_id
-
-        # Get generator and create prompt
+        # Get generator
         generator = self.generator_registry.get_generator(generator_id)
-        return generator.generate_prompt(context)
+
+        # Prepare complete context
+        complete_context = context or {}
+        complete_context["prompt_id"] = prompt_id
+
+        # Merge config with overrides
+        base_config = generator.config.copy()
+        if config_overrides:
+            base_config.update(config_overrides)
+        complete_context["config"] = base_config
+
+        # Add artifacts to context
+        complete_context["artifacts"] = generator.artifacts
+
+        return generator.generate_prompt(complete_context)
 
     def create_k_shot_prompt(self,
                            generator_id: str,
-                           selected_words: Dict[str, str],
                            k_shot_strategy: str = "conversation_examples",
                            context: Optional[Dict[str, Any]] = None,
+                           config_overrides: Optional[Dict[str, Any]] = None,
                            prompt_id: Optional[str] = None) -> StoryPrompt:
         """Create a k-shot prompt with examples."""
         # Create base prompt
-        prompt = self.create_prompt(generator_id, selected_words, context, prompt_id)
+        prompt = self.create_prompt(generator_id, context, config_overrides, prompt_id)
 
         # Add K-shot examples if system is available
         if self.k_shot_system:
-            # Prepare context for k-shot system (includes selected_words)
             k_shot_context = context or {}
-            k_shot_context["selected_words"] = selected_words
-
             k_shot_examples = self.k_shot_system.get_k_shot_examples(k_shot_strategy, k_shot_context)
             prompt.k_shot_examples = k_shot_examples
             prompt.metadata["k_shot_count"] = len(k_shot_examples)
@@ -1007,7 +1044,13 @@ class ModularTemplateManager:
       "k_shot_count": 2,
       "use_k_shot": true,
       "ensure_diversity": true,
-      "prompt_generator": "basic_bedtime_story"
+      "prompt_generator": "basic_bedtime_story",
+      "generator_overrides": {
+        "config": {
+          "max_words": 200,
+          "target_age": 5
+        }
+      }
     },
     "output_settings": {
       "output_path": "generated_stories.jsonl",
@@ -1061,6 +1104,7 @@ class GenerationSettings(BaseModel):
     use_k_shot: bool = Field(default=True, description="Whether to use k-shot examples")
     ensure_diversity: bool = Field(default=True, description="Ensure word diversity across prompts")
     prompt_generator: str = Field(default="basic_bedtime_story", description="Prompt generator to use")
+    generator_overrides: Dict[str, Any] = Field(default_factory=dict, description="Override generator configuration")
 ```
 
 ### 4. Migration Strategy and Implementation Plan
@@ -1734,7 +1778,12 @@ class AdvancedBedtimeStoryHandler(PromptGeneratorHandler):
 
    def test_basic_handler():
        handler = BasicBedtimeStoryHandler(basic_config)
-       prompt = handler.generate_prompt(test_words, test_context)
+       test_context = {
+           "config": basic_config,
+           "artifacts": handler.artifacts,
+           "selected_words": {"word1": "moon", "word2": "dance", "word3": "happy"}
+       }
+       prompt = handler.generate_prompt(test_context)
        assert prompt.full_prompt is not None
        assert handler.validate_config()
    ```
@@ -1746,8 +1795,10 @@ class AdvancedBedtimeStoryHandler(PromptGeneratorHandler):
 
        prompt = template_manager.create_prompt(
            generator_id="basic_bedtime_story",
-           selected_words={"word1": "moon", "word2": "dance", "word3": "happy"},
-           context={"target_age": 4}
+           context={
+               "selected_words": {"word1": "moon", "word2": "dance", "word3": "happy"},
+               "target_age": 4
+           }
        )
 
        assert prompt.full_prompt is not None
