@@ -261,13 +261,30 @@ class MockLLMProvider(LLMProvider):
 
             # Extract words from prompt if possible
             words = []
-            if "containing words" in current_prompt:
-                # Simple extraction - look for quoted words or common patterns
+            if "containing" in current_prompt and "words" in current_prompt:
+                # Simple extraction - look for the pattern "containing X words word1 word2 word3"
                 import re
-                word_matches = re.findall(r'"([^"]*)"', current_prompt)
-                if not word_matches:
-                    word_matches = re.findall(r'\b\w+\b', current_prompt.split("containing words")[1].split("\n")[0])
-                words = word_matches[:3] if word_matches else ["cat", "happy", "sleep"]
+                # Look for pattern like "containing 3 English words word1 word2 word3"
+                pattern = r'containing\s+\d+\s+\w*\s*words\s+([^\n]+)'
+                match = re.search(pattern, current_prompt, re.IGNORECASE)
+                if match:
+                    words_line = match.group(1).strip()
+                    # Split by whitespace and take first 3 words
+                    word_matches = words_line.split()
+                    words = [w for w in word_matches[:3] if w and len(w) > 1 and w.isalpha()]
+
+                if not words:
+                    # Fallback: look for quoted words or common patterns
+                    word_matches = re.findall(r'"([^"]*)"', current_prompt)
+                    if not word_matches:
+                        # Try to extract words after "containing words"
+                        if "containing words" in current_prompt:
+                            after_containing = current_prompt.split("containing words")[1].split("\n")[0]
+                            word_matches = re.findall(r'\b[a-zA-Z]+\b', after_containing)
+                    words = [w for w in word_matches[:3] if w and len(w) > 1] or ["cat", "happy", "sleep"]
+
+            if not words:
+                words = ["cat", "happy", "sleep"]
 
             # Generate a mock story considering k-shot context
             story = self._generate_mock_story_with_context(words, i, k_shot_context)

@@ -5,7 +5,7 @@ This directory contains a comprehensive pipeline for generating synthetic bedtim
 ## Features
 
 - **Template-based generation** with customizable prompts
-- **K-shot prompting** using conversation examples
+- **Advanced K-shot prompting** with JSON configuration system and custom sample selectors
 - **Efficient batched generation** using the proven `method_batched_generation` approach
 - **Word diversity enforcement** to ensure varied vocabulary usage
 - **Automatic validation** of generated stories
@@ -14,6 +14,7 @@ This directory contains a comprehensive pipeline for generating synthetic bedtim
 - **Modular architecture** with proper separation of concerns
 - **JSON configuration** for all settings
 - **Comprehensive logging and statistics**
+- **Multiple LLM provider support** (Transformers, OpenAI-compatible APIs, Mock)
 
 ## Project Structure
 
@@ -28,9 +29,11 @@ training/synthetic_data_generation/
 │   └── story_generator.py    # Main orchestrator
 ├── config/                    # Configuration files and data
 │   ├── vocabulary.json       # Word vocabulary
-│   ├── example_conversation.txt  # K-shot examples
+│   ├── example_conversation.txt  # Legacy k-shot examples (text format)
 │   ├── default_config.json   # Default configuration
 │   └── example_config.json   # Example configuration
+├── docs/                      # Documentation and examples
+│   └── k_shot_prompting_samples.json  # JSON k-shot configurations
 ├── examples/                  # Example scripts and demos
 │   ├── demo.py              # Basic demo
 │   ├── k_shot_demo.py       # K-shot prompting demo
@@ -215,11 +218,23 @@ File paths for input data. All paths can be overridden via command line.
   - **Default**: `"docs/story_features.json"`
   - **Optional**: Can be `null` to disable additional conditions
 
-- **conversation_examples_path**: Path to k-shot examples file
+- **conversation_examples_path**: Path to legacy text k-shot examples file
   - **Format**: Text file with conversation examples for k-shot prompting
-  - **Purpose**: Provides context examples to improve story quality
+  - **Purpose**: Provides context examples to improve story quality (legacy format)
   - **Default**: `"training/synthetic_data_generation/config/example_conversation.txt"`
-  - **Optional**: Can be `null` to disable k-shot prompting
+  - **Optional**: Can be `null` to disable legacy k-shot prompting
+
+- **k_shot_config_file**: Path to JSON k-shot configuration file (recommended)
+  - **Format**: JSON file with structured k-shot configurations and metadata
+  - **Purpose**: Modern k-shot system with custom sample selection
+  - **Default**: `null` (uses legacy text format if available)
+  - **Optional**: Can be `null` to use legacy format or disable k-shot prompting
+
+- **k_shot_config_name**: Name of specific k-shot configuration to use
+  - **Format**: String matching a configuration name in the JSON file
+  - **Purpose**: Select specific k-shot configuration from multiple options
+  - **Default**: `null` (uses first configuration in file)
+  - **Optional**: Can be `null` to use default configuration
 
 #### Generation Settings (`generation_settings` section)
 Controls the overall generation process and story variety.
@@ -495,17 +510,91 @@ Where:
 
 ## K-Shot Prompting
 
-The system supports k-shot prompting using examples from `example_conversation.txt`. The format is:
+The system supports advanced k-shot prompting with two configuration methods:
 
+### JSON Configuration (Recommended)
+
+Use structured JSON files for k-shot examples with metadata and custom sample selection:
+
+```bash
+# Use JSON k-shot configuration
+python -m training.synthetic_data_generation.main \
+    --k-shot-config-file "docs/k_shot_prompting_samples.json" \
+    --k-shot-config-name "2-shot example with dialogue and moral value"
+
+# List available configurations
+python -m training.synthetic_data_generation.main \
+    --list-k-shot-configs \
+    --k-shot-config-file "docs/k_shot_prompting_samples.json"
 ```
-messages_batch = [
-    [
-        {"role": "user", "content": first_prompt}, 
-        {"role": "assistant", "content": first_response}, 
-        {"role": "user", "content": second_prompt}
-    ]
-]
+
+**JSON Format Example:**
+```json
+{
+  "description": "Sample k-shot prompts for bedtime story generation",
+  "samples": [
+    {
+      "name": "2-shot example with dialogue and moral value",
+      "k_shot_count": 2,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story..."
+        },
+        {
+          "role": "assistant",
+          "content": "Benny blinked his sleepy eyes..."
+        }
+      ]
+    }
+  ]
+}
 ```
+
+### Legacy Text Configuration
+
+For backward compatibility, the system still supports text-based examples from `example_conversation.txt`:
+
+```bash
+# Use legacy text format
+python -m training.synthetic_data_generation.main \
+    --conversation-examples-path "config/example_conversation.txt"
+```
+
+### Custom Sample Selection
+
+The JSON system supports custom sample selector functions:
+
+- **Default**: Always picks first sample
+- **Random**: Randomly selects from available samples
+- **Keyword-based**: Selects based on keywords in the prompt
+- **Custom**: Define your own selection logic
+
+**Command Line Options:**
+- `--k-shot-config-file`: Path to JSON k-shot configuration file
+- `--k-shot-config-name`: Specific configuration to use
+- `--list-k-shot-configs`: List available configurations
+- `--require-k-shot`: Fail if k-shot data is missing
+- `--conversation-examples-path`: Legacy text format (backward compatibility)
+
+### Architecture Improvements (Phase 3)
+
+The k-shot system has been completely redesigned with a clean provider interface:
+
+**New LLMRequest Interface:**
+- All providers now use `List[LLMRequest]` instead of `List[str]`
+- Proper conversation structure preservation across all providers
+- No more provider-specific hacks in BatchProcessor
+
+**Fixed Provider Issues:**
+- **OpenAI Provider**: Now properly sends conversation messages to API (was losing k-shot context)
+- **Transformers Provider**: Uses `apply_chat_template()` correctly with message structure
+- **Mock Provider**: Analyzes k-shot context for better mock responses
+
+**Enhanced Data Models:**
+- `KShotConfiguration`: Structured k-shot configurations with metadata
+- `KShotLoader`: Unified loader supporting both JSON and text formats
+- Custom sample selector functions for intelligent k-shot selection
 
 ## Command Line Usage
 
@@ -1085,7 +1174,11 @@ Override input data files from configuration. Useful for testing different vocab
 |-----------|------|---------|-------------|--------|
 | `--vocabulary-path` | string | `config/vocabulary.json` | JSON file containing word lists used for story generation. Words are randomly selected as word1, word2, word3 for each story. | JSON: `{"nouns": [...], "verbs": [...], "adjectives": [...]}` |
 | `--story-features-path` | string | `docs/story_features.json` | JSON file with additional story conditions. One condition is randomly selected per story to add variety. **Optional:** Can be omitted to disable additional conditions. | JSON: `["make sure story has dialogue", "include magical elements", ...]` |
-| `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file containing example conversations for k-shot prompting. Improves story quality by providing context examples. **Optional:** Can be omitted to disable k-shot prompting. | Text file with conversation examples |
+| `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file containing example conversations for k-shot prompting (legacy format). Improves story quality by providing context examples. **Optional:** Can be omitted to disable legacy k-shot prompting. | Text file with conversation examples |
+| `--k-shot-config-file` | string | `null` | JSON file containing structured k-shot configurations with metadata. **Recommended** over legacy text format. Provides multiple configurations and custom sample selection. **Optional:** Can be omitted to use legacy format. | JSON: `{"samples": [{"name": "...", "messages": [...]}]}` |
+| `--k-shot-config-name` | string | `null` | Name of specific k-shot configuration to use from JSON file. If not specified, uses first configuration. **Requires:** `--k-shot-config-file` to be specified. | String matching configuration name |
+| `--list-k-shot-configs` | flag | `false` | List available k-shot configurations from JSON file and exit. **Requires:** `--k-shot-config-file` to be specified. | N/A (flag) |
+| `--require-k-shot` | flag | `false` | Fail if k-shot data is missing instead of continuing without examples. Use for strict validation when k-shot prompting is essential. | N/A (flag) |
 
 ### API Provider Settings
 

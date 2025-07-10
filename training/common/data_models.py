@@ -112,6 +112,24 @@ class ConversationExample(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Example metadata")
 
 
+class KShotConfiguration(BaseModel):
+    """Configuration for k-shot prompting from JSON sources."""
+    name: str = Field(description="Configuration name")
+    k_shot_count: int = Field(description="Number of k-shot examples")
+    messages: List[KShotExample] = Field(description="K-shot example messages")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Configuration metadata")
+
+
+class KShotSource(BaseModel):
+    """Container for multiple k-shot configurations from JSON."""
+    description: str = Field(description="Source description")
+    format: str = Field(description="Format description")
+    samples: List[KShotConfiguration] = Field(description="List of k-shot configurations")
+    usage_notes: List[str] = Field(default_factory=list, description="Usage notes")
+    story_features_used: List[str] = Field(default_factory=list, description="Story features used")
+    vocabulary_examples: Dict[str, Any] = Field(default_factory=dict, description="Vocabulary examples")
+
+
 class Vocabulary(BaseModel):
     """Represents the vocabulary for story generation."""
     nouns: List[str] = Field(description="List of nouns")

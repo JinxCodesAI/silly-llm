@@ -170,6 +170,36 @@ CONFIGURATION:
              "example conversations for k-shot prompting. Improves story quality by providing "
              "context. Default: training/synthetic_data_generation/config/example_conversation.txt"
     )
+
+    parser.add_argument(
+        "--k-shot-config-file",
+        type=str,
+        help="Path to JSON file containing k-shot configurations. This is the preferred "
+             "method for k-shot prompting as it provides structured, maintainable examples "
+             "with metadata. Example: docs/k_shot_prompting_samples.json"
+    )
+
+    parser.add_argument(
+        "--k-shot-config-name",
+        type=str,
+        help="Name of specific k-shot configuration to use from the JSON file. "
+             "If not specified, the first configuration will be used. "
+             "Use --list-k-shot-configs to see available configurations."
+    )
+
+    parser.add_argument(
+        "--list-k-shot-configs",
+        action="store_true",
+        help="List available k-shot configurations from the specified JSON file and exit. "
+             "Requires --k-shot-config-file to be specified."
+    )
+
+    parser.add_argument(
+        "--require-k-shot",
+        action="store_true",
+        help="Fail if k-shot data is missing instead of continuing without examples. "
+             "Use this for strict validation when k-shot prompting is essential."
+    )
     
     parser.add_argument(
         "--log-level",
@@ -204,6 +234,29 @@ CONFIGURATION:
     # Setup logging
     setup_logging(args.log_level)
     logger = logging.getLogger(__name__)
+
+    # Handle k-shot configuration listing
+    if args.list_k_shot_configs:
+        if not args.k_shot_config_file:
+            print("Error: --k-shot-config-file must be specified when using --list-k-shot-configs")
+            sys.exit(1)
+
+        try:
+            from training.common.k_shot_loader import KShotLoader
+            loader = KShotLoader()
+            loader.load_from_json(args.k_shot_config_file)
+
+            print(f"\nAvailable k-shot configurations in {args.k_shot_config_file}:")
+            for i, config_name in enumerate(loader.list_configurations(), 1):
+                config = loader.get_configuration(config_name)
+                print(f"  {i}. {config_name} (k-shot count: {config.k_shot_count})")
+            print()
+
+        except Exception as e:
+            print(f"Error loading k-shot configurations: {e}")
+            sys.exit(1)
+
+        return
     
     # Load configuration
     if args.config:
@@ -252,6 +305,12 @@ CONFIGURATION:
     if args.conversation_examples_path:
         config.data_paths.conversation_examples_path = args.conversation_examples_path
 
+    # Apply k-shot configuration overrides
+    if args.k_shot_config_file:
+        config.data_paths.k_shot_config_file = args.k_shot_config_file
+    if args.k_shot_config_name:
+        config.data_paths.k_shot_config_name = args.k_shot_config_name
+
     # Validate provider options
     provider_count = sum([args.mock_provider, args.openai_provider])
     if provider_count > 1:
@@ -270,6 +329,28 @@ CONFIGURATION:
     if config.data_paths.conversation_examples_path and not Path(config.data_paths.conversation_examples_path).exists():
         logger.warning(f"Conversation examples file not found: {config.data_paths.conversation_examples_path}")
         config.data_paths.conversation_examples_path = None
+
+    # Validate k-shot configuration file
+    if config.data_paths.k_shot_config_file:
+        if not Path(config.data_paths.k_shot_config_file).exists():
+            if args.require_k_shot:
+                logger.error(f"K-shot configuration file not found: {config.data_paths.k_shot_config_file}")
+                sys.exit(1)
+            else:
+                logger.warning(f"K-shot configuration file not found: {config.data_paths.k_shot_config_file}")
+                config.data_paths.k_shot_config_file = None
+                config.data_paths.k_shot_config_name = None
+
+    # Check if k-shot is required but no sources are available
+    if args.require_k_shot and config.generation_settings.use_k_shot:
+        has_k_shot_source = (
+            config.data_paths.k_shot_config_file or
+            config.data_paths.conversation_examples_path
+        )
+        if not has_k_shot_source:
+            logger.error("K-shot examples are required (--require-k-shot) but no k-shot sources are available")
+            logger.error("Provide either --k-shot-config-file or --conversation-examples-path")
+            sys.exit(1)
     
     # Log configuration
     provider_type = "Mock" if args.mock_provider else "OpenAI-compatible API" if args.openai_provider else "Transformers"
@@ -296,6 +377,8 @@ CONFIGURATION:
             vocabulary_path=config.data_paths.vocabulary_path,
             story_features_path=config.data_paths.story_features_path,
             conversation_examples_path=config.data_paths.conversation_examples_path,
+            k_shot_config_file=config.data_paths.k_shot_config_file,
+            k_shot_config_name=config.data_paths.k_shot_config_name,
             generation_config=config.generation,
             k_shot_count=config.generation_settings.k_shot_count,
             device=config.device,

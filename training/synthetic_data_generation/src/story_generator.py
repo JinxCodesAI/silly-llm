@@ -27,6 +27,8 @@ class StoryGenerator:
                  vocabulary_path: str,
                  story_features_path: Optional[str] = None,
                  conversation_examples_path: Optional[str] = None,
+                 k_shot_config_file: Optional[str] = None,
+                 k_shot_config_name: Optional[str] = None,
                  generation_config: Optional[GenerationConfig] = None,
                  k_shot_count: int = 2,
                  device: str = "auto",
@@ -35,12 +37,14 @@ class StoryGenerator:
                  api_base_url: str = "https://api.openai.com/v1",
                  validation_settings: Optional[Dict[str, Any]] = None):
         """Initialize story generator.
-        
+
         Args:
             model_name: Name of the model to use
             vocabulary_path: Path to vocabulary JSON file
             story_features_path: Path to story features JSON file
-            conversation_examples_path: Path to conversation examples file
+            conversation_examples_path: Path to legacy text conversation examples file
+            k_shot_config_file: Path to JSON k-shot configuration file
+            k_shot_config_name: Name of specific k-shot configuration to use
             generation_config: Generation configuration
             k_shot_count: Number of k-shot examples to use
             device: Device to use for model
@@ -53,6 +57,8 @@ class StoryGenerator:
         self.vocabulary_path = vocabulary_path
         self.story_features_path = story_features_path
         self.conversation_examples_path = conversation_examples_path
+        self.k_shot_config_file = k_shot_config_file
+        self.k_shot_config_name = k_shot_config_name
         self.k_shot_count = k_shot_count
         self.device = device
         self.use_mock_provider = use_mock_provider
@@ -101,6 +107,8 @@ class StoryGenerator:
             vocabulary=self.vocabulary,
             template_manager=self.template_manager,
             conversation_examples_path=self.conversation_examples_path,
+            k_shot_config_file=self.k_shot_config_file,
+            k_shot_config_name=self.k_shot_config_name,
             k_shot_count=self.k_shot_count
         )
         
@@ -192,8 +200,8 @@ class StoryGenerator:
 
                 # Select k-shot examples if requested
                 k_shot_examples = []
-                if use_k_shot and self.prompt_generator.k_shot_count > 0 and self.prompt_generator.conversation_examples:
-                    k_shot_examples = self.prompt_generator._select_k_shot_examples()
+                if use_k_shot and self.prompt_generator.k_shot_count > 0:
+                    k_shot_examples = self.prompt_generator._select_k_shot_examples(selected_words)
 
                 # Create prompt with batch and position info
                 prompt_id = f"batch_{batch_idx:03d}_pos_{pos_in_batch:03d}"

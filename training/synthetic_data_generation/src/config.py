@@ -13,6 +13,8 @@ class DataPaths(BaseModel):
     vocabulary_path: str = Field(description="Path to vocabulary JSON file")
     story_features_path: Optional[str] = Field(default=None, description="Path to story features JSON")
     conversation_examples_path: Optional[str] = Field(default=None, description="Path to conversation examples")
+    k_shot_config_file: Optional[str] = Field(default=None, description="Path to JSON k-shot configuration file")
+    k_shot_config_name: Optional[str] = Field(default=None, description="Name of specific k-shot configuration to use")
 
 
 class GenerationSettings(BaseModel):
