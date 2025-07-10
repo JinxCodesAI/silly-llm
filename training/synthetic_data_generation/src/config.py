@@ -17,6 +17,15 @@ class DataPaths(BaseModel):
     k_shot_config_name: Optional[str] = Field(default=None, description="Name of specific k-shot configuration to use")
 
 
+class KShotSettings(BaseModel):
+    """K-shot configuration settings."""
+    selector_type: str = Field(default="default", description="Type of sample selector: default, random, keyword, custom")
+    selector_function: Optional[str] = Field(default=None, description="Name of custom selector function")
+    selector_module: Optional[str] = Field(default=None, description="Module path for custom selector function")
+    fallback_config: Optional[str] = Field(default=None, description="Fallback configuration name")
+    keyword_mappings: Optional[Dict[str, str]] = Field(default=None, description="Keyword to config name mappings")
+
+
 class GenerationSettings(BaseModel):
     """Generation behavior settings."""
     num_stories: int = Field(default=1000, description="Number of stories to generate")
@@ -55,6 +64,7 @@ class StoryGenerationConfig(BaseModel):
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     data_paths: DataPaths = Field(description="Data file paths")
     generation_settings: GenerationSettings = Field(default_factory=GenerationSettings)
+    k_shot_settings: KShotSettings = Field(default_factory=KShotSettings)
     output_settings: OutputSettings = Field(description="Output settings")
     validation_settings: ValidationSettings = Field(default_factory=ValidationSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)

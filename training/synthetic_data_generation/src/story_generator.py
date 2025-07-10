@@ -31,6 +31,7 @@ class StoryGenerator:
                  k_shot_config_name: Optional[str] = None,
                  generation_config: Optional[GenerationConfig] = None,
                  k_shot_count: int = 2,
+                 k_shot_settings: Optional[Dict[str, Any]] = None,
                  device: str = "auto",
                  use_mock_provider: bool = False,
                  use_openai_provider: bool = False,
@@ -47,6 +48,7 @@ class StoryGenerator:
             k_shot_config_name: Name of specific k-shot configuration to use
             generation_config: Generation configuration
             k_shot_count: Number of k-shot examples to use
+            k_shot_settings: Dictionary with k-shot configuration settings
             device: Device to use for model
             use_mock_provider: Whether to use mock provider for testing
             use_openai_provider: Whether to use OpenAI-compatible API provider
@@ -60,6 +62,7 @@ class StoryGenerator:
         self.k_shot_config_file = k_shot_config_file
         self.k_shot_config_name = k_shot_config_name
         self.k_shot_count = k_shot_count
+        self.k_shot_settings = k_shot_settings
         self.device = device
         self.use_mock_provider = use_mock_provider
         self.use_openai_provider = use_openai_provider
@@ -109,7 +112,8 @@ class StoryGenerator:
             conversation_examples_path=self.conversation_examples_path,
             k_shot_config_file=self.k_shot_config_file,
             k_shot_config_name=self.k_shot_config_name,
-            k_shot_count=self.k_shot_count
+            k_shot_count=self.k_shot_count,
+            k_shot_settings=self.k_shot_settings
         )
         
         # Initialize batch processor with validation settings

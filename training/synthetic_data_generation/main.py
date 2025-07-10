@@ -381,6 +381,7 @@ CONFIGURATION:
             k_shot_config_name=config.data_paths.k_shot_config_name,
             generation_config=config.generation,
             k_shot_count=config.generation_settings.k_shot_count,
+            k_shot_settings=config.k_shot_settings.model_dump(),
             device=config.device,
             use_mock_provider=args.mock_provider,
             use_openai_provider=args.openai_provider,

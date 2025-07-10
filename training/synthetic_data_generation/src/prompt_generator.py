@@ -22,7 +22,8 @@ class PromptGenerator:
                  k_shot_config_file: Optional[str] = None,
                  k_shot_config_name: Optional[str] = None,
                  k_shot_count: int = 2,
-                 sample_selector: Optional[Callable] = None):
+                 sample_selector: Optional[Callable] = None,
+                 k_shot_settings: Optional[Dict[str, Any]] = None):
         """Initialize prompt generator.
 
         Args:
@@ -33,6 +34,7 @@ class PromptGenerator:
             k_shot_config_name: Name of specific k-shot configuration to use
             k_shot_count: Number of k-shot examples to include (0 for no examples)
             sample_selector: Custom function for selecting k-shot samples
+            k_shot_settings: Dictionary with k-shot configuration settings
         """
         self.vocabulary = vocabulary
         self.template_manager = template_manager
@@ -44,6 +46,11 @@ class PromptGenerator:
         # Set custom sample selector if provided
         if sample_selector:
             self.k_shot_loader.set_sample_selector(sample_selector)
+        elif k_shot_settings:
+            # Load selector from k_shot_settings
+            selector = self._load_selector_from_settings(k_shot_settings)
+            if selector:
+                self.k_shot_loader.set_sample_selector(selector)
 
         # Load k-shot examples from JSON file (preferred)
         if k_shot_config_file:
@@ -173,6 +180,56 @@ class PromptGenerator:
 
         # No k-shot examples available
         return []
+
+    def _load_selector_from_settings(self, k_shot_settings: Dict[str, Any]) -> Optional[Callable]:
+        """Load sample selector function from k_shot_settings configuration.
+
+        Args:
+            k_shot_settings: Dictionary with k-shot configuration settings
+
+        Returns:
+            Selector function or None if loading fails
+        """
+        selector_type = k_shot_settings.get("selector_type", "default")
+
+        try:
+            if selector_type == "default":
+                from ...common.k_shot_loader import default_sample_selector
+                return default_sample_selector
+            elif selector_type == "random":
+                from ...common.k_shot_loader import random_sample_selector
+                return random_sample_selector
+            elif selector_type == "keyword":
+                from ...common.k_shot_loader import keyword_based_selector
+                keyword_mappings = k_shot_settings.get("keyword_mappings", {})
+                if keyword_mappings:
+                    return keyword_based_selector(keyword_mappings)
+                else:
+                    logger.warning("Keyword selector requested but no keyword_mappings provided")
+                    return None
+            elif selector_type == "custom":
+                # Load custom selector function
+                selector_module = k_shot_settings.get("selector_module")
+                selector_function = k_shot_settings.get("selector_function")
+
+                if not selector_module or not selector_function:
+                    logger.error("Custom selector requires both selector_module and selector_function")
+                    return None
+
+                # Import the module and get the function
+                import importlib
+                module = importlib.import_module(selector_module)
+                selector_func = getattr(module, selector_function)
+
+                logger.info(f"Loaded custom selector: {selector_module}.{selector_function}")
+                return selector_func
+            else:
+                logger.warning(f"Unknown selector type: {selector_type}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to load selector function: {e}")
+            return None
     
     def create_single_prompt(self, 
                            word1: str, word2: str, word3: str,
