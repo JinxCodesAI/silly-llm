@@ -37,7 +37,7 @@ class StoryGenerator:
                  device: str = "auto",
                  use_mock_provider: bool = False,
                  use_openai_provider: bool = False,
-                 api_base_url: str = "https://api.openai.com/v1",
+                 api_base_url: str = "https://openrouter.ai/api/v1",
                  validation_settings: Optional[Dict[str, Any]] = None):
         """Initialize story generator.
 
