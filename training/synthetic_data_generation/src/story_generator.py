@@ -27,22 +27,28 @@ class StoryGenerator:
                  vocabulary_path: str,
                  story_features_path: Optional[str] = None,
                  conversation_examples_path: Optional[str] = None,
+                 k_shot_config_file: Optional[str] = None,
+                 k_shot_config_name: Optional[str] = None,
                  generation_config: Optional[GenerationConfig] = None,
                  k_shot_count: int = 2,
+                 k_shot_settings: Optional[Dict[str, Any]] = None,
                  device: str = "auto",
                  use_mock_provider: bool = False,
                  use_openai_provider: bool = False,
                  api_base_url: str = "https://api.openai.com/v1",
                  validation_settings: Optional[Dict[str, Any]] = None):
         """Initialize story generator.
-        
+
         Args:
             model_name: Name of the model to use
             vocabulary_path: Path to vocabulary JSON file
             story_features_path: Path to story features JSON file
-            conversation_examples_path: Path to conversation examples file
+            conversation_examples_path: Path to legacy text conversation examples file
+            k_shot_config_file: Path to JSON k-shot configuration file
+            k_shot_config_name: Name of specific k-shot configuration to use
             generation_config: Generation configuration
             k_shot_count: Number of k-shot examples to use
+            k_shot_settings: Dictionary with k-shot configuration settings
             device: Device to use for model
             use_mock_provider: Whether to use mock provider for testing
             use_openai_provider: Whether to use OpenAI-compatible API provider
@@ -53,7 +59,10 @@ class StoryGenerator:
         self.vocabulary_path = vocabulary_path
         self.story_features_path = story_features_path
         self.conversation_examples_path = conversation_examples_path
+        self.k_shot_config_file = k_shot_config_file
+        self.k_shot_config_name = k_shot_config_name
         self.k_shot_count = k_shot_count
+        self.k_shot_settings = k_shot_settings
         self.device = device
         self.use_mock_provider = use_mock_provider
         self.use_openai_provider = use_openai_provider
@@ -101,7 +110,10 @@ class StoryGenerator:
             vocabulary=self.vocabulary,
             template_manager=self.template_manager,
             conversation_examples_path=self.conversation_examples_path,
-            k_shot_count=self.k_shot_count
+            k_shot_config_file=self.k_shot_config_file,
+            k_shot_config_name=self.k_shot_config_name,
+            k_shot_count=self.k_shot_count,
+            k_shot_settings=self.k_shot_settings
         )
         
         # Initialize batch processor with validation settings
@@ -192,8 +204,8 @@ class StoryGenerator:
 
                 # Select k-shot examples if requested
                 k_shot_examples = []
-                if use_k_shot and self.prompt_generator.k_shot_count > 0 and self.prompt_generator.conversation_examples:
-                    k_shot_examples = self.prompt_generator._select_k_shot_examples()
+                if use_k_shot and self.prompt_generator.k_shot_count > 0:
+                    k_shot_examples = self.prompt_generator._select_k_shot_examples(selected_words)
 
                 # Create prompt with batch and position info
                 prompt_id = f"batch_{batch_idx:03d}_pos_{pos_in_batch:03d}"
@@ -206,31 +218,57 @@ class StoryGenerator:
 
                 batch_prompts.append(prompt)
 
-            # Process this batch
-            try:
-                logger.info(f"Processing batch {batch_idx + 1}/{total_batches}")
-                
-                result = await self.batch_processor.process_batch_with_ids(
-                    batch_prompts, batch_idx
-                )
-                all_results.append(result)
-                all_stories.extend(result.stories)
+            # Process this batch with retry logic
+            success = False
+            max_retries = 3
+            retry_delay = 5.0
 
-                # Progress callback
-                progress_callback(len(all_stories), num_stories)
+            for attempt in range(max_retries + 1):
+                try:
+                    logger.info(f"Processing batch {batch_idx + 1}/{total_batches}" +
+                               (f" (attempt {attempt + 1})" if attempt > 0 else ""))
 
-                # Save intermediate results if requested
-                if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
-                    intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
-                    self._save_stories(all_stories, intermediate_path)
+                    # Use adaptive batch processing for better memory handling
+                    result = await self.batch_processor.process_batch_with_adaptive_size(
+                        batch_prompts, batch_idx
+                    )
+                    all_results.append(result)
+                    all_stories.extend(result.stories)
+                    success = True
 
-                # Clear memory between batches
-                self.llm_provider.clear_memory()
+                    # Progress callback
+                    progress_callback(len(all_stories), num_stories)
 
-            except Exception as e:
-                logger.error(f"Failed to process batch {batch_idx + 1}: {e}")
-                # Continue with next batch
-                continue
+                    # Save intermediate results if requested
+                    if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
+                        intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
+                        self._save_stories(all_stories, intermediate_path)
+
+                    # Clear memory between batches
+                    self.llm_provider.clear_memory()
+
+                    # Force garbage collection
+                    import gc
+                    gc.collect()
+
+                    break
+
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Batch {batch_idx + 1} failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                        logger.info(f"Retrying batch {batch_idx + 1} in {retry_delay} seconds...")
+
+                        # Clear memory before retry
+                        self.llm_provider.clear_memory()
+
+                        # Wait before retry
+                        import asyncio
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        logger.error(f"Batch {batch_idx + 1} failed after {max_retries + 1} attempts: {e}")
+
+            if not success:
+                logger.error(f"Skipping batch {batch_idx + 1} after all retry attempts failed")
         
         # Final processing is already done in the loop above
         

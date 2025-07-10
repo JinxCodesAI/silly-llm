@@ -1,0 +1,47 @@
+{
+  "model_name": "Qwen/Qwen2.5-7B-Instruct",
+  "device": "auto",
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "k_shot_config_file": "training/synthetic_data_generation/config/k_shot_prompting_samples.json",
+    "k_shot_config_name": null
+  },
+  "k_shot_settings": {
+    "selector_type": "keyword",
+    "selector_function": null,
+    "selector_module": null,
+    "fallback_config": "2-shot example with dialogue and moral value",
+    "keyword_mappings": {
+      "dialogue": "2-shot example with dialogue and moral value",
+      "sad": "1-shot example with sad-to-happy story",
+      "conversation": "3-shot example with all conversation types"
+    }
+  },
+  "generation": {
+    "batch_size": 8,
+    "max_new_tokens": 512,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "repetition_penalty": 1.0
+  },
+  "generation_settings": {
+    "num_stories": 100,
+    "k_shot_count": 2,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "themed_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 50
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 50,
+    "max_words": 300
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}
