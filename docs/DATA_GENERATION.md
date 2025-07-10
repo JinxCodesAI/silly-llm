@@ -121,33 +121,353 @@ python -m training.synthetic_data_generation.main \
     --story-features-path "path/to/your/features.json"
 ```
 
-### Key Configuration Sections
+### Detailed Configuration Reference
+
+The configuration system uses JSON files with the following structure. All settings can be overridden via command-line arguments.
 
 #### Model and Provider Settings
-- **model_name**: Model to use (HuggingFace model or API model name)
-- **device**: Device for local models ("auto", "cuda", "cpu") or "api"/"mock"
+- **model_name**: Model identifier to use
+  - For TransformersProvider: HuggingFace model name (e.g., `"Qwen/Qwen2.5-3B-Instruct"`)
+  - For OpenAI provider: API model name (e.g., `"gpt-3.5-turbo"`, `"gpt-4"`)
+  - For MockProvider: Any string (used for logging only)
+- **device**: Device selection for local models
+  - `"auto"`: Automatically detect best available device (recommended)
+  - `"cuda"`: Force GPU usage (requires CUDA-compatible GPU)
+  - `"cpu"`: Force CPU usage (slower but works everywhere)
+  - `"api"`: Used for API providers (OpenAI-compatible)
+  - `"mock"`: Used for MockProvider testing
 
-#### Generation Parameters
-- **batch_size**: Batch size for efficient generation
-- **max_new_tokens**: Maximum tokens to generate per story
-- **temperature**: Sampling temperature (0.0-2.0)
-- **top_p**: Top-p sampling parameter
+#### Generation Parameters (`generation` section)
+Controls how the language model generates text. These parameters directly affect story quality and generation speed.
 
-#### Data Paths (can be overridden via command line)
+- **batch_size**: Number of stories processed simultaneously
+  - **Range**: 1-64 (depends on available memory)
+  - **Impact**: Higher values = faster generation but more memory usage
+  - **Recommendations**:
+    - Local models: 8-16 for 3B models, 4-8 for 7B+ models
+    - API providers: 3-5 to avoid rate limits
+    - Large models: 1-2 to prevent out-of-memory errors
+  - **Memory usage**: Roughly linear scaling with batch size
+
+- **max_new_tokens**: Maximum number of tokens to generate per story
+  - **Range**: 50-4096 tokens
+  - **Impact**: Controls maximum story length (1 token ≈ 0.75 words)
+  - **Recommendations**:
+    - Short stories: 200-512 tokens (150-400 words)
+    - Medium stories: 512-1024 tokens (400-800 words)
+    - Long stories: 1024-2048 tokens (800-1500 words)
+  - **Note**: Stories may be shorter if model generates end-of-text token
+
+- **temperature**: Controls randomness in text generation
+  - **Range**: 0.0-2.0
+  - **Impact**:
+    - 0.0: Deterministic, always picks most likely token (repetitive)
+    - 0.1-0.3: Very focused, consistent but may be repetitive
+    - 0.6-0.8: Balanced creativity and coherence (recommended)
+    - 1.0-1.2: More creative but less coherent
+    - 1.5+: Very random, often incoherent
+  - **Recommendations**: 0.6-0.8 for bedtime stories
+
+- **top_p**: Nucleus sampling parameter (alternative to temperature)
+  - **Range**: 0.0-1.0
+  - **Impact**: Only considers tokens with cumulative probability up to top_p
+  - **Recommendations**:
+    - 0.9-0.95: Good balance of quality and diversity
+    - 0.8-0.9: More focused generation
+    - 0.95-1.0: More diverse but potentially less coherent
+  - **Note**: Works together with temperature for fine-tuned control
+
+- **do_sample**: Whether to use sampling or greedy decoding
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Uses temperature/top_p for varied outputs
+    - `false`: Always picks most likely token (deterministic but repetitive)
+  - **Recommendation**: Always use `true` for creative text generation
+
+- **repetition_penalty**: Penalty for repeating tokens/phrases
+  - **Range**: 1.0-1.5
+  - **Impact**:
+    - 1.0: No penalty (may repeat phrases)
+    - 1.1: Light penalty (recommended for most cases)
+    - 1.2-1.3: Moderate penalty (reduces repetition)
+    - 1.4+: Strong penalty (may hurt coherence)
+  - **Recommendation**: 1.1 for balanced repetition control
+
+- **use_cache**: Whether to use key-value cache for faster generation
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Faster generation, uses more memory
+    - `false`: Slower generation, uses less memory
+  - **Recommendation**: `true` unless memory is extremely limited
+
+#### Data Paths (`data_paths` section)
+File paths for input data. All paths can be overridden via command line.
+
 - **vocabulary_path**: Path to vocabulary JSON file
+  - **Format**: JSON with `{"nouns": [...], "verbs": [...], "adjectives": [...]}`
+  - **Purpose**: Words randomly selected for each story (word1, word2, word3)
+  - **Default**: `"training/synthetic_data_generation/config/vocabulary.json"`
+
 - **story_features_path**: Path to story features JSON file
+  - **Format**: JSON array of strings `["condition1", "condition2", ...]`
+  - **Purpose**: Additional story conditions randomly selected for variety
+  - **Example**: `"make sure story has dialogue"`, `"include magical elements"`
+  - **Default**: `"docs/story_features.json"`
+  - **Optional**: Can be `null` to disable additional conditions
+
 - **conversation_examples_path**: Path to k-shot examples file
+  - **Format**: Text file with conversation examples for k-shot prompting
+  - **Purpose**: Provides context examples to improve story quality
+  - **Default**: `"training/synthetic_data_generation/config/example_conversation.txt"`
+  - **Optional**: Can be `null` to disable k-shot prompting
 
-#### Generation Settings
-- **num_stories**: Number of stories to generate
-- **k_shot_count**: Number of example conversations to include
-- **use_k_shot**: Whether to use k-shot prompting
-- **ensure_diversity**: Ensure word combinations are diverse across prompts
+#### Generation Settings (`generation_settings` section)
+Controls the overall generation process and story variety.
 
-#### Validation Settings (works with all providers)
+- **num_stories**: Total number of stories to generate
+  - **Range**: 1-unlimited
+  - **Impact**: Total dataset size
+  - **Processing**: Stories are generated in batches for efficiency
+  - **Recommendation**: Start with 100-1000 for testing, scale up for production
+
+- **k_shot_count**: Number of example conversations to include in prompts
+  - **Range**: 0-10 (practical limit)
+  - **Impact**:
+    - 0: No examples (faster but lower quality)
+    - 1-2: Light context (good balance)
+    - 3-5: Rich context (better quality, slower)
+    - 5+: Diminishing returns, much slower
+  - **Recommendation**: 2-3 for most use cases
+  - **Memory impact**: Each example adds ~100-500 tokens to input
+
+- **use_k_shot**: Whether to use k-shot examples at all
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Uses conversation examples for better story quality
+    - `false`: Faster generation but potentially lower quality
+  - **Recommendation**: `true` unless speed is critical
+
+- **ensure_diversity**: Prevent word combination repetition across stories
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Each story uses unique word combinations (more diverse dataset)
+    - `false`: Word combinations may repeat (faster but less diverse)
+  - **Implementation**: Tracks used combinations, tries up to 100 attempts for uniqueness
+  - **Recommendation**: `true` for dataset creation, `false` for quick testing
+
+#### Output Settings (`output_settings` section)
+Controls how and where generated stories are saved.
+
+- **output_path**: Path where generated stories will be saved
+  - **Format**: JSONL file (one JSON object per line)
+  - **Automatic features**:
+    - Timestamp added to filename (e.g., `stories_20240101_120000.jsonl`)
+    - Metadata saved to `{output_path}.metadata.json`
+  - **Example**: `"generated_stories.jsonl"`
+
+- **save_intermediate**: Whether to save progress during generation
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Saves intermediate files every N stories (recovery from failures)
+    - `false`: Only saves final result (risk of losing progress)
+  - **Files created**: `{output_path}.intermediate_{count}.jsonl`
+  - **Recommendation**: `true` for long-running generations
+
+- **intermediate_save_interval**: How often to save intermediate results
+  - **Range**: 10-1000 stories
+  - **Impact**: Balance between safety and disk I/O
+  - **Recommendations**:
+    - Fast generation: 100-500 stories
+    - Slow generation: 25-100 stories
+    - Very slow/unstable: 10-25 stories
+
+#### Validation Settings (`validation_settings` section)
+Quality control for generated stories.
+
 - **validate_stories**: Whether to validate generated stories
-- **min_words**: Minimum words per story
-- **max_words**: Maximum words per story
+  - **Values**: `true` (recommended) or `false`
+  - **Impact**:
+    - `true`: Filters out invalid stories (better quality, fewer stories)
+    - `false`: Keeps all generated text (faster, may include poor quality)
+  - **Validation checks**: Word count, required word presence
+  - **Recommendation**: `true` for production datasets
+
+- **min_words**: Minimum word count for valid stories
+  - **Range**: 10-500 words
+  - **Impact**: Filters out very short stories
+  - **Recommendations**:
+    - Bedtime stories: 50-100 words minimum
+    - Short stories: 100-200 words minimum
+    - Longer stories: 200+ words minimum
+
+- **max_words**: Maximum word count for valid stories
+  - **Range**: 50-2000 words
+  - **Impact**: Filters out very long stories
+  - **Recommendations**:
+    - Bedtime stories: 200-300 words maximum
+    - Short stories: 500-800 words maximum
+    - Longer stories: 1000+ words maximum
+  - **Note**: Should be consistent with `max_new_tokens` setting
+
+#### Logging Settings (`logging` section)
+Controls logging verbosity and debugging information.
+
+- **log_level**: Logging verbosity level
+  - **Values**: `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"`
+  - **Impact**:
+    - `"DEBUG"`: Detailed execution info, validation details, timing
+    - `"INFO"`: Progress updates, batch processing, statistics (recommended)
+    - `"WARNING"`: Only warnings and errors
+    - `"ERROR"`: Only errors
+  - **Recommendation**: `"INFO"` for normal use, `"DEBUG"` for troubleshooting
+
+### Configuration Examples by Use Case
+
+Here are complete configuration examples for different scenarios:
+
+#### Example 1: Development/Testing Configuration
+```json
+{
+  "model_name": "mock-test-model",
+  "device": "mock",
+  "generation": {
+    "batch_size": 10,
+    "max_new_tokens": 150,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.0,
+    "use_cache": false
+  },
+  "generation_settings": {
+    "num_stories": 20,
+    "k_shot_count": 1,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "test_stories.jsonl",
+    "save_intermediate": false,
+    "intermediate_save_interval": 10
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 30,
+    "max_words": 200
+  },
+  "logging": {
+    "log_level": "DEBUG"
+  }
+}
+```
+
+#### Example 2: Production Local Model Configuration
+```json
+{
+  "model_name": "Qwen/Qwen2.5-7B-Instruct",
+  "device": "auto",
+  "generation": {
+    "batch_size": 8,
+    "max_new_tokens": 512,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.1,
+    "use_cache": true
+  },
+  "generation_settings": {
+    "num_stories": 5000,
+    "k_shot_count": 3,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "production_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 250
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 80,
+    "max_words": 400
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}
+```
+
+#### Example 3: API Provider Configuration
+```json
+{
+  "model_name": "gpt-3.5-turbo",
+  "device": "api",
+  "generation": {
+    "batch_size": 3,
+    "max_new_tokens": 300,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "do_sample": true,
+    "repetition_penalty": 1.0,
+    "use_cache": false
+  },
+  "generation_settings": {
+    "num_stories": 1000,
+    "k_shot_count": 2,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "api_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 100
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 50,
+    "max_words": 250
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}
+```
+
+#### Example 4: High-Performance Large Model Configuration
+```json
+{
+  "model_name": "Qwen/Qwen2.5-32B-Instruct",
+  "device": "cuda",
+  "generation": {
+    "batch_size": 2,
+    "max_new_tokens": 1024,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "do_sample": true,
+    "repetition_penalty": 1.1,
+    "use_cache": true
+  },
+  "generation_settings": {
+    "num_stories": 10000,
+    "k_shot_count": 5,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "large_dataset.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 500
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 100,
+    "max_words": 800
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}
+```
 
 ### Provider Options
 
@@ -364,18 +684,185 @@ Extend the validation system in `utils.py` to add custom story quality checks.
 
 ## Troubleshooting
 
-### Common Issues
+### Common Configuration Issues
 
-1. **CUDA out of memory**: Reduce `batch_size` in configuration
-2. **Model not found**: Ensure model name is correct and accessible
-3. **Vocabulary file missing**: Check path to `vocabulary.json`
-4. **Generation too slow**: Try smaller model or increase batch size
+#### Memory and Performance Problems
 
-### Debug Mode
-Run with `--log-level DEBUG` for detailed logging:
+1. **CUDA out of memory**
+   - **Symptoms**: `RuntimeError: CUDA out of memory`
+   - **Solutions**:
+     - Reduce `batch_size` (try 4, 2, or 1)
+     - Reduce `max_new_tokens` (try 256 or 512)
+     - Use smaller model (e.g., 3B instead of 7B)
+     - Set `use_cache: false` to save memory
+   - **Example fix**:
+     ```json
+     "generation": {
+       "batch_size": 2,
+       "max_new_tokens": 256,
+       "use_cache": false
+     }
+     ```
+
+2. **Generation too slow**
+   - **Symptoms**: Very low stories/minute rate
+   - **Solutions**:
+     - Increase `batch_size` (if memory allows)
+     - Reduce `k_shot_count` or set `use_k_shot: false`
+     - Use smaller model or switch to API provider
+     - Reduce `max_new_tokens`
+   - **Example optimization**:
+     ```json
+     "generation": {
+       "batch_size": 16,
+       "max_new_tokens": 300
+     },
+     "generation_settings": {
+       "k_shot_count": 1,
+       "use_k_shot": false
+     }
+     ```
+
+3. **High memory usage**
+   - **Symptoms**: System running out of RAM
+   - **Solutions**:
+     - Reduce `batch_size`
+     - Set `save_intermediate: true` with lower `intermediate_save_interval`
+     - Use `device: "cpu"` if GPU memory is limited
+     - Enable `use_cache: false`
+
+#### Model and Provider Issues
+
+4. **Model not found**
+   - **Symptoms**: `Model not found` or `Repository not found`
+   - **Solutions**:
+     - Verify model name spelling and availability
+     - Check HuggingFace Hub access for private models
+     - Ensure model supports the required architecture
+   - **Common model names**:
+     - `"Qwen/Qwen2.5-3B-Instruct"`
+     - `"microsoft/DialoGPT-medium"`
+     - `"gpt-3.5-turbo"` (for API)
+
+5. **API authentication failed**
+   - **Symptoms**: `401 Unauthorized` or `Invalid API key`
+   - **Solutions**:
+     - Verify `AI_API_KEY` environment variable is set
+     - Check API key validity and permissions
+     - Verify `api_base_url` is correct for your provider
+   - **Example setup**:
+     ```bash
+     export AI_API_KEY=sk-your-key-here
+     python -m training.synthetic_data_generation.main --openai-provider
+     ```
+
+#### Data and File Issues
+
+6. **Vocabulary file missing**
+   - **Symptoms**: `FileNotFoundError: vocabulary.json`
+   - **Solutions**:
+     - Check path in `vocabulary_path` setting
+     - Verify file exists and is readable
+     - Use absolute paths if relative paths fail
+   - **Example fix**:
+     ```json
+     "data_paths": {
+       "vocabulary_path": "/absolute/path/to/vocabulary.json"
+     }
+     ```
+
+7. **Invalid JSON configuration**
+   - **Symptoms**: `JSONDecodeError` when loading config
+   - **Solutions**:
+     - Validate JSON syntax (use online JSON validator)
+     - Check for trailing commas, missing quotes
+     - Use `--create-config` to generate valid template
+   - **Common mistakes**:
+     ```json
+     // ❌ Wrong: trailing comma
+     "temperature": 0.8,
+
+     // ✅ Correct: no trailing comma
+     "temperature": 0.8
+     ```
+
+#### Generation Quality Issues
+
+8. **Stories too short/long**
+   - **Symptoms**: Stories consistently fail validation
+   - **Solutions**:
+     - Adjust `min_words`/`max_words` in validation settings
+     - Modify `max_new_tokens` to control length
+     - Check if model is generating end-of-text tokens early
+   - **Example adjustment**:
+     ```json
+     "generation": {
+       "max_new_tokens": 800
+     },
+     "validation_settings": {
+       "min_words": 100,
+       "max_words": 600
+     }
+     ```
+
+9. **Poor story quality**
+   - **Symptoms**: Incoherent or repetitive stories
+   - **Solutions**:
+     - Enable k-shot prompting: `use_k_shot: true`
+     - Adjust temperature (try 0.7-0.8)
+     - Increase `repetition_penalty` (try 1.2)
+     - Use better conversation examples
+   - **Example quality settings**:
+     ```json
+     "generation": {
+       "temperature": 0.7,
+       "repetition_penalty": 1.2
+     },
+     "generation_settings": {
+       "use_k_shot": true,
+       "k_shot_count": 3
+     }
+     ```
+
+10. **Missing required words in stories**
+    - **Symptoms**: Stories fail validation for missing words
+    - **Solutions**:
+      - Check vocabulary file format
+      - Verify words are appropriate for the model
+      - Adjust validation settings if too strict
+      - Review story features for conflicts
+
+### Debug Mode and Logging
+
+Use detailed logging to diagnose issues:
+
 ```bash
-python -m training.synthetic_data_generation.main --log-level DEBUG --config my_config.yaml
+# Enable debug logging
+python -m training.synthetic_data_generation.main --log-level DEBUG --config my_config.json
+
+# Save logs to file
+python -m training.synthetic_data_generation.main --log-level DEBUG --config my_config.json > debug.log 2>&1
+
+# Monitor progress with INFO level
+python -m training.synthetic_data_generation.main --log-level INFO --config my_config.json
 ```
+
+### Performance Optimization Guidelines
+
+#### For Local Models
+- **Small models (3B)**: `batch_size: 8-16`, `max_new_tokens: 512`
+- **Medium models (7B)**: `batch_size: 4-8`, `max_new_tokens: 512`
+- **Large models (13B+)**: `batch_size: 1-2`, `max_new_tokens: 256-512`
+
+#### For API Providers
+- **Batch size**: 3-5 (avoid rate limits)
+- **Save intermediate**: Every 25-100 stories
+- **Retry logic**: Built-in for failed requests
+
+#### Memory Usage Estimates
+- **3B model**: ~6-8GB GPU memory (batch_size=8)
+- **7B model**: ~14-16GB GPU memory (batch_size=4)
+- **13B model**: ~26-30GB GPU memory (batch_size=1)
 
 ## Complete Examples
 
@@ -559,65 +1046,227 @@ Simply set the appropriate `--api-base-url` and `--model-name` for your service.
 
 ## Command Line Parameters Reference
 
-### Configuration Parameters
+All configuration file settings can be overridden via command-line arguments. Command-line arguments take precedence over configuration file values.
+
+### Configuration Management
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `--config`, `-c` | string | Path to JSON configuration file. Works with all providers. | `--config config/openai_config.json` |
-| `--create-config` | string | Create a default configuration template at specified path | `--create-config my_config.json` |
+| `--config`, `-c` | string | Path to JSON configuration file. Works with all providers. Loads all settings from file, then applies command-line overrides. | `--config config/openai_config.json` |
+| `--create-config` | string | Create a default configuration template at specified path. Creates a complete JSON template that you can customize for your needs. | `--create-config my_config.json` |
 
 ### Provider Selection (mutually exclusive)
 
-| Parameter | Description | Requirements |
-|-----------|-------------|--------------|
-| *(default)* | TransformersProvider - Local HuggingFace models | `torch`, `transformers` |
-| `--mock-provider` | MockProvider - Testing without dependencies | None (built-in) |
-| `--openai-provider` | OpenAI-compatible API provider | `httpx`, `AI_API_KEY` env var |
+Choose exactly one provider. If none specified, defaults to TransformersProvider.
+
+| Parameter | Description | Requirements | Use Case |
+|-----------|-------------|--------------|----------|
+| *(default)* | **TransformersProvider** - Local HuggingFace models | `torch`, `transformers`, CUDA (optional) | Local generation, full control, no API costs |
+| `--mock-provider` | **MockProvider** - Testing without dependencies | None (built-in) | Testing pipeline, development, CI/CD |
+| `--openai-provider` | **OpenAI-compatible API provider** | `httpx`, `AI_API_KEY` env var | Cloud generation, no local GPU needed |
 
 ### Model and Generation Settings
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--model-name` | string | `Qwen/Qwen2.5-3B-Instruct` | Model identifier. HuggingFace model name for local, API model name for remote |
-| `--num-stories` | integer | `100` | Total number of stories to generate |
-| `--batch-size` | integer | `8` | Stories processed simultaneously. Higher = faster but more memory |
-| `--output-path` | string | `generated_stories.jsonl` | Output file path. Metadata saved to `{path}.metadata.json` |
-| `--device` | choice | `auto` | Device for local models: `auto`, `cuda`, `cpu` |
+Core settings that control what model to use and how many stories to generate.
+
+| Parameter | Type | Default | Description | Examples |
+|-----------|------|---------|-------------|----------|
+| `--model-name` | string | `Qwen/Qwen2.5-3B-Instruct` | Model identifier. Format depends on provider:<br/>• TransformersProvider: HuggingFace model name<br/>• OpenAI provider: API model name<br/>• MockProvider: any string (logging only) | `--model-name "Qwen/Qwen2.5-7B-Instruct"`<br/>`--model-name "gpt-3.5-turbo"`<br/>`--model-name "test-model"` |
+| `--num-stories` | integer | `100` | Total number of stories to generate in this run. Stories are processed in batches for efficiency. | `--num-stories 1000` |
+| `--batch-size` | integer | `8` | Number of stories processed simultaneously. **Performance impact:**<br/>• Higher = faster generation but more memory<br/>• Lower = slower but uses less memory<br/>**Recommendations:**<br/>• Local 3B models: 8-16<br/>• Local 7B+ models: 4-8<br/>• API providers: 3-5<br/>• Large models: 1-2 | `--batch-size 16` |
+| `--output-path` | string | `generated_stories.jsonl` | Output file path for generated stories. **Automatic features:**<br/>• Timestamp added to filename<br/>• Metadata saved to `{path}.metadata.json`<br/>• JSONL format (one story per line) | `--output-path "my_stories.jsonl"` |
+| `--device` | choice | `auto` | Device selection for TransformersProvider only:<br/>• `auto`: Automatically detect best device<br/>• `cuda`: Force GPU (requires CUDA)<br/>• `cpu`: Force CPU (slower but universal)<br/>**Ignored for API and Mock providers** | `--device cuda` |
 
 ### Data File Overrides
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--vocabulary-path` | string | `config/vocabulary.json` | JSON file with word lists (nouns, verbs, adjectives) |
-| `--story-features-path` | string | `docs/story_features.json` | JSON file with story conditions (randomly selected) |
-| `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file with k-shot examples |
+Override input data files from configuration. Useful for testing different vocabularies or examples.
+
+| Parameter | Type | Default | Description | Format |
+|-----------|------|---------|-------------|--------|
+| `--vocabulary-path` | string | `config/vocabulary.json` | JSON file containing word lists used for story generation. Words are randomly selected as word1, word2, word3 for each story. | JSON: `{"nouns": [...], "verbs": [...], "adjectives": [...]}` |
+| `--story-features-path` | string | `docs/story_features.json` | JSON file with additional story conditions. One condition is randomly selected per story to add variety. **Optional:** Can be omitted to disable additional conditions. | JSON: `["make sure story has dialogue", "include magical elements", ...]` |
+| `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file containing example conversations for k-shot prompting. Improves story quality by providing context examples. **Optional:** Can be omitted to disable k-shot prompting. | Text file with conversation examples |
 
 ### API Provider Settings
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--api-base-url` | string | `https://api.openai.com/v1` | Base URL for OpenAI-compatible APIs |
+Settings specific to OpenAI-compatible API providers.
 
-### Generation Control
+| Parameter | Type | Default | Description | Examples |
+|-----------|------|---------|-------------|----------|
+| `--api-base-url` | string | `https://openrouter.ai/api/v1` | Base URL for OpenAI-compatible APIs. **Supported services:**<br/>• OpenAI: `https://api.openai.com/v1`<br/>• OpenRouter: `https://openrouter.ai/api/v1`<br/>• Together AI: `https://api.together.xyz/v1`<br/>• Local servers: `http://localhost:8000/v1` | `--api-base-url "https://api.openai.com/v1"` |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--no-k-shot` | flag | `False` | Disable k-shot examples (faster but lower quality) |
-| `--no-diversity` | flag | `False` | Allow repeated word combinations across stories |
-| `--log-level` | choice | `INFO` | Logging verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+### Generation Control Flags
+
+Boolean flags that modify generation behavior.
+
+| Parameter | Default | Description | Impact | Use Cases |
+|-----------|---------|-------------|--------|-----------|
+| `--no-k-shot` | `False` | Disable k-shot examples completely. **Trade-offs:**<br/>• Faster generation (less input tokens)<br/>• Lower quality stories (no context examples)<br/>• Reduced API costs | **Speed:** ~20-30% faster<br/>**Quality:** May reduce coherence and story structure | Quick testing, minimal quality requirements |
+| `--no-diversity` | `False` | Allow repeated word combinations across stories. **Trade-offs:**<br/>• Faster prompt generation (no uniqueness checking)<br/>• Less diverse dataset (repeated patterns)<br/>• Simpler processing | **Speed:** Minimal impact<br/>**Quality:** Reduces dataset diversity | Testing, when word variety isn't important |
+| `--log-level` | `INFO` | Set logging verbosity level:<br/>• `DEBUG`: Detailed execution info, validation details<br/>• `INFO`: Progress updates, statistics (recommended)<br/>• `WARNING`: Only warnings and errors<br/>• `ERROR`: Only critical errors | **Performance:** DEBUG mode slightly slower due to extra logging | `DEBUG` for troubleshooting, `INFO` for normal use |
 
 ### Environment Variables
 
-| Variable | Required For | Description |
-|----------|--------------|-------------|
-| `AI_API_KEY` | OpenAI provider | API key for authentication |
+Required environment variables for certain providers.
+
+| Variable | Required For | Description | Example |
+|----------|--------------|-------------|---------|
+| `AI_API_KEY` | `--openai-provider` | API key for authentication with OpenAI-compatible services. **Security:** Never commit API keys to version control. | `export AI_API_KEY=sk-your-key-here` |
+
+### Configuration Best Practices
+
+#### Choosing the Right Settings
+
+**For Development and Testing:**
+```json
+{
+  "generation": {
+    "batch_size": 4,
+    "max_new_tokens": 200,
+    "temperature": 0.8
+  },
+  "generation_settings": {
+    "num_stories": 50,
+    "k_shot_count": 1,
+    "ensure_diversity": false
+  },
+  "output_settings": {
+    "save_intermediate": false
+  },
+  "logging": {
+    "log_level": "DEBUG"
+  }
+}
+```
+
+**For Production Datasets:**
+```json
+{
+  "generation": {
+    "batch_size": 8,
+    "max_new_tokens": 512,
+    "temperature": 0.7,
+    "repetition_penalty": 1.1
+  },
+  "generation_settings": {
+    "num_stories": 10000,
+    "k_shot_count": 3,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "save_intermediate": true,
+    "intermediate_save_interval": 500
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 80,
+    "max_words": 400
+  }
+}
+```
+
+**For API Cost Optimization:**
+```json
+{
+  "generation": {
+    "batch_size": 3,
+    "max_new_tokens": 250,
+    "temperature": 0.8
+  },
+  "generation_settings": {
+    "k_shot_count": 1,
+    "use_k_shot": true
+  },
+  "output_settings": {
+    "save_intermediate": true,
+    "intermediate_save_interval": 25
+  }
+}
+```
+
+#### Configuration Validation Checklist
+
+Before running large-scale generation, verify:
+
+- [ ] **Model compatibility**: Model name is correct and accessible
+- [ ] **Memory requirements**: `batch_size` × `max_new_tokens` fits in available memory
+- [ ] **File paths**: All data files exist and are readable
+- [ ] **Output settings**: Output directory is writable
+- [ ] **Validation ranges**: `min_words`/`max_words` are reasonable for `max_new_tokens`
+- [ ] **API settings**: API key is set and base URL is correct (for API providers)
+- [ ] **Backup strategy**: `save_intermediate` is enabled for long runs
+
+#### Common Configuration Patterns
+
+**Pattern 1: Quality-focused (slower, better stories)**
+```json
+{
+  "generation": {
+    "temperature": 0.6,
+    "top_p": 0.9,
+    "repetition_penalty": 1.2
+  },
+  "generation_settings": {
+    "k_shot_count": 5,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 100
+  }
+}
+```
+
+**Pattern 2: Speed-focused (faster, acceptable quality)**
+```json
+{
+  "generation": {
+    "batch_size": 16,
+    "max_new_tokens": 300,
+    "temperature": 0.8
+  },
+  "generation_settings": {
+    "k_shot_count": 1,
+    "use_k_shot": false,
+    "ensure_diversity": false
+  },
+  "validation_settings": {
+    "validate_stories": false
+  }
+}
+```
+
+**Pattern 3: Balanced (good speed and quality)**
+```json
+{
+  "generation": {
+    "batch_size": 8,
+    "max_new_tokens": 400,
+    "temperature": 0.7,
+    "repetition_penalty": 1.1
+  },
+  "generation_settings": {
+    "k_shot_count": 2,
+    "use_k_shot": true,
+    "ensure_diversity": true
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 60,
+    "max_words": 300
+  }
+}
+```
 
 ### Parameter Priority
 
 Settings are applied in this order (later overrides earlier):
-1. Default values
+1. Default values (from code)
 2. Configuration file settings
 3. Command line arguments
+
+This allows you to have base configurations and override specific settings as needed.
 
 ### Examples by Use Case
 
