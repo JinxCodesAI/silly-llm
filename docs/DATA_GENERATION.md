@@ -30,10 +30,13 @@ training/synthetic_data_generation/
 ├── config/                    # Configuration files and data
 │   ├── vocabulary.json       # Word vocabulary
 │   ├── example_conversation.txt  # Legacy k-shot examples (text format)
+│   ├── k_shot_prompting_samples.json  # Default JSON k-shot configurations
+│   ├── custom_kshot_samples.json      # Example custom k-shot configurations
+│   ├── custom_selectors.py            # Example custom selector functions
+│   ├── advanced_kshot_example.json    # Example keyword-based selector config
+│   ├── custom_selector_example.json   # Example custom selector config
 │   ├── default_config.json   # Default configuration
 │   └── example_config.json   # Example configuration
-├── docs/                      # Documentation and examples
-│   └── k_shot_prompting_samples.json  # JSON k-shot configurations
 ├── examples/                  # Example scripts and demos
 │   ├── demo.py              # Basic demo
 │   ├── k_shot_demo.py       # K-shot prompting demo
@@ -227,7 +230,7 @@ File paths for input data. All paths can be overridden via command line.
 - **k_shot_config_file**: Path to JSON k-shot configuration file (recommended)
   - **Format**: JSON file with structured k-shot configurations and metadata
   - **Purpose**: Modern k-shot system with custom sample selection
-  - **Default**: `null` (uses legacy text format if available)
+  - **Default**: `"training/synthetic_data_generation/config/k_shot_prompting_samples.json"`
   - **Optional**: Can be `null` to use legacy format or disable k-shot prompting
 
 - **k_shot_config_name**: Name of specific k-shot configuration to use
@@ -510,72 +513,266 @@ Where:
 
 ## K-Shot Prompting
 
-The system supports advanced k-shot prompting with two configuration methods:
+The system supports advanced k-shot prompting through **configuration files**. All k-shot settings are configured in your JSON config file - no command-line parameters needed for normal usage.
 
-### JSON Configuration (Recommended)
+### Step-by-Step Setup Guide
 
-Use structured JSON files for k-shot examples with metadata and custom sample selection:
+#### Step 1: Create Your K-Shot Sample File
 
-```bash
-# Use JSON k-shot configuration
-python -m training.synthetic_data_generation.main \
-    --k-shot-config-file "docs/k_shot_prompting_samples.json" \
-    --k-shot-config-name "2-shot example with dialogue and moral value"
+Create a JSON file with your k-shot examples (e.g., `config/my_kshot_samples.json`):
 
-# List available configurations
-python -m training.synthetic_data_generation.main \
-    --list-k-shot-configs \
-    --k-shot-config-file "docs/k_shot_prompting_samples.json"
-```
-
-**JSON Format Example:**
 ```json
 {
-  "description": "Sample k-shot prompts for bedtime story generation",
+  "description": "Custom k-shot prompts for bedtime story generation",
   "samples": [
     {
-      "name": "2-shot example with dialogue and moral value",
-      "k_shot_count": 2,
+      "name": "simple-stories",
+      "k_shot_count": 1,
       "messages": [
         {
           "role": "user",
-          "content": "Generate simple, short (up to 150 words) bed time story..."
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining 3 English words rabbit garden happy\n\nkeep story coherent and gramatically correct"
         },
         {
           "role": "assistant",
-          "content": "Benny blinked his sleepy eyes..."
+          "content": "Rosie the rabbit loved her garden. Every morning, she would hop between the carrot rows, feeling so happy. The garden was full of colorful flowers and tasty vegetables..."
         }
-      ]
+      ],
+      "metadata": {
+        "theme": "animals",
+        "difficulty": "easy"
+      }
     }
   ]
 }
 ```
 
-### Legacy Text Configuration
+#### Step 2: Configure Your Main Config File
 
-For backward compatibility, the system still supports text-based examples from `example_conversation.txt`:
+Add k-shot configuration to your main config file (e.g., `config/my_config.json`):
 
-```bash
-# Use legacy text format
-python -m training.synthetic_data_generation.main \
-    --conversation-examples-path "config/example_conversation.txt"
+```json
+{
+  "model_name": "Qwen/Qwen2.5-7B-Instruct",
+  "device": "auto",
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "k_shot_config_file": "config/my_kshot_samples.json",
+    "k_shot_config_name": "simple-stories"
+  },
+  "k_shot_settings": {
+    "selector_type": "default"
+  },
+  "generation_settings": {
+    "num_stories": 100,
+    "k_shot_count": 2,
+    "use_k_shot": true
+  },
+  "output_settings": {
+    "output_path": "my_stories.jsonl"
+  }
+}
 ```
 
-### Custom Sample Selection
+#### Step 3: Run Story Generation
 
-The JSON system supports custom sample selector functions:
+```bash
+# Use your configuration file
+python -m training.synthetic_data_generation.main --config config/my_config.json
+```
 
-- **Default**: Always picks first sample
-- **Random**: Randomly selects from available samples
-- **Keyword-based**: Selects based on keywords in the prompt
-- **Custom**: Define your own selection logic
+That's it! The system will automatically load your k-shot examples and use them during generation.
 
-**Command Line Options:**
-- `--k-shot-config-file`: Path to JSON k-shot configuration file
-- `--k-shot-config-name`: Specific configuration to use
-- `--list-k-shot-configs`: List available configurations
-- `--require-k-shot`: Fail if k-shot data is missing
-- `--conversation-examples-path`: Legacy text format (backward compatibility)
+### Built-in Sample Selection Strategies
+
+Configure different selection strategies in your config file's `k_shot_settings` section:
+
+#### Default Selection (Always First Sample)
+```json
+{
+  "k_shot_settings": {
+    "selector_type": "default"
+  }
+}
+```
+
+#### Random Selection
+```json
+{
+  "k_shot_settings": {
+    "selector_type": "random"
+  }
+}
+```
+
+#### Keyword-Based Selection
+```json
+{
+  "k_shot_settings": {
+    "selector_type": "keyword",
+    "keyword_mappings": {
+      "animals": "animal-stories",
+      "adventure": "adventure-stories",
+      "family": "family-stories"
+    }
+  }
+}
+```
+
+### Advanced Configuration Examples
+
+#### Multiple K-Shot Samples
+
+Create multiple samples in your k-shot file for variety:
+
+```json
+{
+  "description": "Multiple themed k-shot examples",
+  "samples": [
+    {
+      "name": "animal-stories",
+      "k_shot_count": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate story with words rabbit garden happy..."
+        },
+        {
+          "role": "assistant",
+          "content": "Rosie the rabbit loved her garden..."
+        }
+      ],
+      "metadata": {
+        "theme": "animals",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "name": "adventure-stories",
+      "k_shot_count": 2,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate story with words treasure map brave..."
+        },
+        {
+          "role": "assistant",
+          "content": "Captain Sam found an old treasure map..."
+        },
+        {
+          "role": "user",
+          "content": "Generate story with words mountain climb courage..."
+        },
+        {
+          "role": "assistant",
+          "content": "Little Maya wanted to climb the tall mountain..."
+        }
+      ],
+      "metadata": {
+        "theme": "adventure",
+        "difficulty": "medium"
+      }
+    }
+  ]
+}
+```
+
+Then configure keyword-based selection:
+
+```json
+{
+  "data_paths": {
+    "k_shot_config_file": "config/themed_kshot_samples.json",
+    "k_shot_config_name": null
+  },
+  "k_shot_settings": {
+    "selector_type": "keyword",
+    "keyword_mappings": {
+      "animals": "animal-stories",
+      "adventure": "adventure-stories"
+    },
+    "fallback_config": "animal-stories"
+  }
+}
+```
+
+#### Custom Sample Selector Functions
+
+For advanced selection logic, create a custom selector function:
+
+**Step 1**: Create `config/my_selectors.py`:
+
+```python
+from typing import List
+from training.common.data_models import KShotConfiguration
+
+def theme_based_selector(prompt: str, configurations: List[KShotConfiguration]) -> KShotConfiguration:
+    """Select based on detected theme in prompt."""
+    prompt_lower = prompt.lower()
+
+    # Define theme keywords
+    themes = {
+        "animals": ["rabbit", "cat", "dog", "bird", "zoo"],
+        "adventure": ["treasure", "map", "brave", "journey"],
+        "magic": ["wizard", "fairy", "spell", "magical"]
+    }
+
+    # Find matching theme
+    for theme, keywords in themes.items():
+        if any(keyword in prompt_lower for keyword in keywords):
+            for config in configurations:
+                if config.metadata.get("theme") == theme:
+                    return config
+
+    # Fallback to first configuration
+    return configurations[0]
+```
+
+**Step 2**: Configure custom selector in your config file:
+
+```json
+{
+  "k_shot_settings": {
+    "selector_type": "custom",
+    "selector_function": "theme_based_selector",
+    "selector_module": "config.my_selectors",
+    "fallback_config": "animal-stories"
+  }
+}
+```
+
+### Legacy Text Format Support
+
+For backward compatibility, you can still use text-based examples:
+
+```json
+{
+  "data_paths": {
+    "conversation_examples_path": "config/example_conversation.txt"
+  },
+  "generation_settings": {
+    "use_k_shot": true
+  }
+}
+```
+
+### Command-Line Overrides (Optional)
+
+While configuration files are the recommended approach, you can override settings via command line:
+
+```bash
+# Override k-shot configuration
+python -m training.synthetic_data_generation.main \
+    --config config/my_config.json \
+    --k-shot-config-file "config/different_samples.json" \
+    --k-shot-config-name "specific-sample"
+
+# List available configurations
+python -m training.synthetic_data_generation.main \
+    --list-k-shot-configs \
+    --k-shot-config-file "config/my_kshot_samples.json"
+```
 
 ### Architecture Improvements (Phase 3)
 
@@ -596,460 +793,188 @@ The k-shot system has been completely redesigned with a clean provider interface
 - `KShotLoader`: Unified loader supporting both JSON and text formats
 - Custom sample selector functions for intelligent k-shot selection
 
-## Creating Custom K-Shot Configurations
+## Advanced K-Shot Customization
 
-This section provides detailed step-by-step instructions for creating custom k-shot sample files, implementing custom sample selector functions, and integrating them through configuration files.
+### Complete JSON Sample File Structure
 
-### Step 1: Creating a New K-Shot Sample File
-
-#### 1.1 JSON Sample File Structure
-
-Create a new JSON file (e.g., `my_custom_kshot.json`) with the following structure:
+For advanced use cases, here's the complete structure for k-shot sample files:
 
 ```json
 {
-  "description": "Custom k-shot prompts for [your use case]",
-  "format": "Each sample shows how k-shot examples are formatted for the generation pipeline",
+  "description": "Complete k-shot configuration with all features",
+  "format": "Structured k-shot examples with comprehensive metadata",
   "samples": [
     {
-      "name": "my-custom-config",
+      "name": "advanced-example",
       "k_shot_count": 2,
       "messages": [
         {
           "role": "user",
-          "content": "Your first example prompt here..."
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining 3 English words rabbit garden happy\n\nkeep story coherent and gramatically correct"
         },
         {
           "role": "assistant",
-          "content": "Your first example response here..."
+          "content": "Rosie the rabbit loved her garden. Every morning, she would hop between the carrot rows, feeling so happy..."
         },
         {
           "role": "user",
-          "content": "Your second example prompt here..."
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining 3 English words cat sleep dream\n\nkeep story coherent and gramatically correct"
         },
         {
           "role": "assistant",
-          "content": "Your second example response here..."
+          "content": "Whiskers the cat loved to sleep in sunny spots. One afternoon, she had the most wonderful dream..."
         }
       ],
       "metadata": {
-        "category": "custom",
-        "difficulty": "medium",
-        "keywords": ["keyword1", "keyword2"]
+        "theme": "animals",
+        "difficulty": "easy",
+        "target_age": "3-5",
+        "story_length": "short",
+        "keywords": ["animals", "nature", "peaceful"]
       }
     }
   ],
   "usage_notes": [
-    "Custom notes about your k-shot examples",
-    "Guidelines for when to use this configuration"
-  ]
-}
-```
-
-#### 1.2 Step-by-Step Sample Creation
-
-**Step 1**: Define your sample structure
-```bash
-# Create your custom k-shot file
-touch config/my_custom_kshot.json
-```
-
-**Step 2**: Add the basic structure
-```json
-{
-  "description": "My custom k-shot examples for [specific domain]",
-  "format": "Structured k-shot examples with metadata",
-  "samples": [],
-  "usage_notes": []
-}
-```
-
-**Step 3**: Create your first configuration
-```json
-{
-  "name": "short-stories-with-animals",
-  "k_shot_count": 1,
-  "messages": [
-    {
-      "role": "user",
-      "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining words \"rabbit\", \"garden\", \"happy\"\nmake sure the story features animals as main characters\n\nkeep story coherent and gramatically correct"
-    },
-    {
-      "role": "assistant",
-      "content": "Rosie the rabbit loved her garden. Every morning, she would hop between the carrot rows, feeling so happy. The garden was full of colorful flowers and tasty vegetables. One day, Rosie found a tiny seed that sparkled in the sunlight. She planted it carefully and watered it every day. Soon, a magical flower grew that granted wishes to all the garden animals. Rosie wished for endless carrots, and her wish came true! All the animals in the garden were happy and well-fed. Rosie learned that sharing and caring makes everyone happy. The end."
-    }
+    "Use for animal-themed stories for young children",
+    "Emphasizes simple vocabulary and peaceful themes"
   ],
-  "metadata": {
-    "theme": "animals",
-    "target_age": "3-5",
-    "story_length": "short",
-    "keywords": ["animals", "garden", "nature"]
-  }
-}
-```
-
-**Step 4**: Add multiple configurations for variety
-```json
-{
-  "samples": [
-    {
-      "name": "short-stories-with-animals",
-      "k_shot_count": 1,
-      "messages": [/* ... */]
-    },
-    {
-      "name": "adventure-stories",
-      "k_shot_count": 2,
-      "messages": [
-        {
-          "role": "user",
-          "content": "Generate adventure story with words \"treasure\", \"map\", \"brave\"..."
-        },
-        {
-          "role": "assistant",
-          "content": "Captain Sam found an old treasure map..."
-        },
-        {
-          "role": "user",
-          "content": "Generate adventure story with words \"mountain\", \"climb\", \"courage\"..."
-        },
-        {
-          "role": "assistant",
-          "content": "Little Maya wanted to climb the tall mountain..."
-        }
-      ],
-      "metadata": {
-        "theme": "adventure",
-        "difficulty": "medium"
-      }
-    }
+  "story_features_used": [
+    "Character development",
+    "Moral lessons",
+    "Age-appropriate vocabulary"
   ]
 }
 ```
 
-### Step 2: Creating Custom Sample Selector Functions
+### Advanced Selector Function Examples
 
-#### 2.1 Built-in Selector Functions
+For complex selection logic, you can create custom selector functions. Here are some examples:
 
-The system provides several built-in selectors:
+#### Theme-Based Selector
 
-- **Default**: `default_sample_selector` - Always returns first configuration
-- **Random**: `random_sample_selector` - Randomly selects configuration
-- **Keyword-based**: `keyword_based_selector` - Selects based on keywords in prompt
-
-#### 2.2 Creating a Custom Selector Function
-
-**Step 1**: Create a custom selector file (e.g., `config/my_selectors.py`):
+Create `config/advanced_selectors.py`:
 
 ```python
-"""Custom sample selector functions."""
-
 from typing import List
 from training.common.data_models import KShotConfiguration
 
 def theme_based_selector(prompt: str, configurations: List[KShotConfiguration]) -> KShotConfiguration:
-    """Select k-shot configuration based on story theme detected in prompt."""
+    """Select based on detected theme in prompt."""
     prompt_lower = prompt.lower()
 
     # Define theme keywords
-    theme_keywords = {
-        "animals": ["animal", "rabbit", "cat", "dog", "bird", "zoo", "farm"],
-        "adventure": ["adventure", "treasure", "map", "journey", "explore", "brave"],
-        "magic": ["magic", "wizard", "fairy", "spell", "enchanted", "magical"],
-        "family": ["family", "mom", "dad", "sister", "brother", "grandma", "grandpa"]
+    themes = {
+        "animals": ["rabbit", "cat", "dog", "bird", "zoo", "farm"],
+        "adventure": ["treasure", "map", "brave", "journey", "explore"],
+        "magic": ["wizard", "fairy", "spell", "magical", "enchanted"],
+        "family": ["mom", "dad", "sister", "brother", "family"]
     }
 
-    # Check for theme keywords in prompt
-    for theme, keywords in theme_keywords.items():
+    # Find matching theme
+    for theme, keywords in themes.items():
         if any(keyword in prompt_lower for keyword in keywords):
-            # Look for configuration with matching theme
             for config in configurations:
                 if config.metadata.get("theme") == theme:
                     return config
 
-    # Fallback to first configuration
-    return configurations[0]
+    return configurations[0]  # Fallback
 
 def difficulty_based_selector(prompt: str, configurations: List[KShotConfiguration]) -> KShotConfiguration:
-    """Select k-shot configuration based on story complexity."""
+    """Select based on story complexity."""
     prompt_lower = prompt.lower()
 
-    # Detect complexity indicators
-    if any(word in prompt_lower for word in ["simple", "easy", "basic", "short"]):
-        difficulty = "easy"
-    elif any(word in prompt_lower for word in ["complex", "detailed", "long", "advanced"]):
-        difficulty = "hard"
+    if any(word in prompt_lower for word in ["simple", "easy", "young", "3 years"]):
+        target_difficulty = "easy"
+    elif any(word in prompt_lower for word in ["complex", "detailed", "older", "8 years"]):
+        target_difficulty = "hard"
     else:
-        difficulty = "medium"
+        target_difficulty = "medium"
 
-    # Find matching configuration
     for config in configurations:
-        if config.metadata.get("difficulty") == difficulty:
+        if config.metadata.get("difficulty") == target_difficulty:
             return config
 
-    # Fallback to first configuration
-    return configurations[0]
-
-def length_based_selector(prompt: str, configurations: List[KShotConfiguration]) -> KShotConfiguration:
-    """Select k-shot configuration based on desired story length."""
-    import re
-
-    # Extract word count from prompt
-    word_count_match = re.search(r'(\d+)\s*words?', prompt.lower())
-    if word_count_match:
-        target_words = int(word_count_match.group(1))
-
-        if target_words <= 100:
-            target_length = "short"
-        elif target_words <= 200:
-            target_length = "medium"
-        else:
-            target_length = "long"
-
-        # Find matching configuration
-        for config in configurations:
-            if config.metadata.get("story_length") == target_length:
-                return config
-
-    # Fallback to first configuration
-    return configurations[0]
+    return configurations[0]  # Fallback
 ```
 
-**Step 2**: Register your custom selector in the configuration (see Step 3 below).
-
-### Step 3: Integrating Custom K-Shot Configuration in Config Files
-
-#### 3.1 Basic Configuration Integration
-
-Add k-shot configuration to your JSON config file:
+Then configure it in your config file:
 
 ```json
 {
-  "model_name": "Qwen/Qwen2.5-7B-Instruct",
-  "device": "auto",
-  "data_paths": {
-    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
-    "story_features_path": "docs/story_features.json",
-    "k_shot_config_file": "config/my_custom_kshot.json",
-    "k_shot_config_name": "short-stories-with-animals"
-  },
-  "generation": {
-    "batch_size": 8,
-    "max_new_tokens": 512,
-    "temperature": 0.8,
-    "top_p": 0.9,
-    "repetition_penalty": 1.0
-  },
-  "generation_settings": {
-    "num_stories": 100,
-    "k_shot_count": 2,
-    "use_k_shot": true,
-    "ensure_diversity": true
-  },
-  "output_settings": {
-    "output_path": "custom_stories.jsonl",
-    "save_intermediate": true,
-    "intermediate_save_interval": 50
-  }
-}
-```
-
-#### 3.2 Advanced Configuration with Custom Selectors
-
-**Step 1**: Extend the configuration system to support custom selectors.
-
-Create `config/advanced_kshot_config.json`:
-
-```json
-{
-  "model_name": "Qwen/Qwen2.5-7B-Instruct",
-  "device": "auto",
-  "data_paths": {
-    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
-    "story_features_path": "docs/story_features.json",
-    "k_shot_config_file": "config/my_custom_kshot.json",
-    "k_shot_config_name": null
-  },
   "k_shot_settings": {
     "selector_type": "custom",
     "selector_function": "theme_based_selector",
-    "selector_module": "config.my_selectors",
-    "fallback_config": "short-stories-with-animals"
-  },
-  "generation": {
-    "batch_size": 8,
-    "max_new_tokens": 512,
-    "temperature": 0.8
-  },
-  "generation_settings": {
-    "num_stories": 500,
-    "k_shot_count": 2,
-    "use_k_shot": true,
-    "ensure_diversity": true
-  },
-  "output_settings": {
-    "output_path": "themed_stories.jsonl",
-    "save_intermediate": true,
-    "intermediate_save_interval": 100
+    "selector_module": "config.advanced_selectors"
   }
 }
 ```
 
-#### 3.3 Multiple K-Shot Sources Configuration
+### Testing Your K-Shot Configuration
 
-Configure multiple k-shot sources for different scenarios:
-
-```json
-{
-  "model_name": "Qwen/Qwen2.5-7B-Instruct",
-  "data_paths": {
-    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
-    "story_features_path": "docs/story_features.json",
-    "k_shot_config_file": "config/my_custom_kshot.json"
-  },
-  "k_shot_profiles": {
-    "animals": {
-      "config_name": "short-stories-with-animals",
-      "selector": "theme_based_selector"
-    },
-    "adventure": {
-      "config_name": "adventure-stories",
-      "selector": "difficulty_based_selector"
-    },
-    "default": {
-      "config_name": "short-stories-with-animals",
-      "selector": "default_sample_selector"
-    }
-  },
-  "generation_settings": {
-    "num_stories": 1000,
-    "k_shot_count": 2,
-    "use_k_shot": true,
-    "active_profile": "animals"
-  }
-}
-```
-
-### Step 4: Using Custom Configurations
-
-#### 4.1 Command Line Usage
+#### Validate Configuration Loading
 
 ```bash
-# Use custom k-shot configuration
-python -m training.synthetic_data_generation.main \
-    --config config/advanced_kshot_config.json \
-    --num-stories 100
-
-# Override k-shot settings
-python -m training.synthetic_data_generation.main \
-    --config config/advanced_kshot_config.json \
-    --k-shot-config-file "config/my_custom_kshot.json" \
-    --k-shot-config-name "adventure-stories"
-
-# List available configurations in your custom file
-python -m training.synthetic_data_generation.main \
-    --list-k-shot-configs \
-    --k-shot-config-file "config/my_custom_kshot.json"
-```
-
-#### 4.2 Programmatic Usage
-
-```python
-from training.common.k_shot_loader import KShotLoader
-from config.my_selectors import theme_based_selector
-
-# Load custom k-shot configuration
-loader = KShotLoader()
-loader.load_from_json("config/my_custom_kshot.json")
-
-# Set custom selector
-loader.set_sample_selector(theme_based_selector)
-
-# Use in prompt generator
-from training.synthetic_data_generation.src.prompt_generator import PromptGenerator
-
-prompt_generator = PromptGenerator(
-    vocabulary=vocabulary,
-    template_manager=template_manager,
-    k_shot_config_file="config/my_custom_kshot.json",
-    k_shot_config_name="adventure-stories",
-    sample_selector=theme_based_selector
-)
-```
-
-### Step 5: Testing and Validation
-
-#### 5.1 Validate Your K-Shot Configuration
-
-```bash
-# Test configuration loading
+# Test your configuration file
 python -c "
-from training.common.k_shot_loader import KShotLoader
-loader = KShotLoader()
-configs = loader.load_from_json('config/my_custom_kshot.json')
-print(f'Loaded {len(configs)} configurations')
-for config in configs:
-    print(f'- {config.name}: {config.k_shot_count} examples')
+from training.synthetic_data_generation.src.config import load_config
+config = load_config('config/my_config.json')
+print(f'✓ Config loaded: {config.data_paths.k_shot_config_file}')
+print(f'✓ Selector type: {config.k_shot_settings.selector_type}')
 "
 
-# Test with mock provider
+# List available k-shot configurations
 python -m training.synthetic_data_generation.main \
+    --list-k-shot-configs \
+    --k-shot-config-file "config/my_kshot_samples.json"
+```
+
+#### Test with Mock Provider
+
+```bash
+# Generate test stories to verify k-shot examples are working
+python -m training.synthetic_data_generation.main \
+    --config config/my_config.json \
     --mock-provider \
     --num-stories 3 \
-    --k-shot-config-file "config/my_custom_kshot.json" \
-    --k-shot-config-name "short-stories-with-animals" \
-    --output-path "test_custom.jsonl"
+    --output-path test_kshot.jsonl
 ```
 
-#### 5.2 Verify Custom Selector Function
+### Best Practices
 
-```python
-# Test custom selector
-from config.my_selectors import theme_based_selector
-from training.common.k_shot_loader import KShotLoader
+#### K-Shot Sample Quality
+- **Consistency**: All examples should follow the same format and style
+- **Relevance**: Examples should match your target story domain
+- **Diversity**: Include varied examples covering different scenarios
+- **Quality**: Use well-written, grammatically correct examples
 
-loader = KShotLoader()
-configs = loader.load_from_json("config/my_custom_kshot.json")
+#### Configuration Management
+- **Version Control**: Keep your k-shot files in version control
+- **Documentation**: Add clear descriptions and usage notes
+- **Testing**: Test configurations before production use
+- **Backup**: Maintain backups of working configurations
 
-# Test with different prompts
-test_prompts = [
-    "Generate a story about a brave rabbit in the garden",
-    "Create an adventure story with treasure and maps",
-    "Write a magical story with wizards and spells"
-]
-
-for prompt in test_prompts:
-    selected = theme_based_selector(prompt, configs)
-    print(f"Prompt: {prompt[:50]}...")
-    print(f"Selected: {selected.name}")
-    print()
-```
-
-### Step 6: Best Practices
-
-#### 6.1 K-Shot Sample Quality Guidelines
-
-- **Consistency**: Ensure all examples follow the same format and style
-- **Relevance**: Examples should be relevant to your target domain
-- **Diversity**: Include varied examples to cover different scenarios
-- **Length**: Keep examples appropriate for your target story length
-- **Quality**: Use high-quality, well-written examples
-
-#### 6.2 Selector Function Guidelines
-
-- **Robustness**: Handle edge cases and unexpected inputs gracefully
+#### Selector Function Guidelines
+- **Robustness**: Handle edge cases gracefully
 - **Performance**: Keep selector functions fast and efficient
-- **Fallback**: Always provide a fallback to prevent errors
-- **Documentation**: Document your selector logic clearly
-- **Testing**: Test with various prompt types
+- **Fallback**: Always provide a fallback configuration
+- **Documentation**: Document your selection logic clearly
 
-#### 6.3 Configuration Management
+### Available Example Configurations
 
-- **Versioning**: Version your k-shot configuration files
-- **Documentation**: Document the purpose and usage of each configuration
-- **Validation**: Validate configurations before deployment
-- **Backup**: Keep backups of working configurations
-- **Testing**: Test configurations with different providers
+The system includes several example configurations you can use as starting points:
+
+#### Basic Examples
+- `config/k_shot_prompting_samples.json` - Default k-shot examples
+- `config/advanced_kshot_example.json` - Keyword-based selector configuration
+- `config/custom_selector_example.json` - Custom function selector configuration
+
+#### Advanced Examples
+- `config/custom_kshot_samples.json` - Themed samples with comprehensive metadata
+- `config/custom_selectors.py` - Example custom selector function implementations
+
+You can copy and modify these examples for your specific use case.
+
+
 
 ## Command Line Usage
 
@@ -1630,7 +1555,7 @@ Override input data files from configuration. Useful for testing different vocab
 | `--vocabulary-path` | string | `config/vocabulary.json` | JSON file containing word lists used for story generation. Words are randomly selected as word1, word2, word3 for each story. | JSON: `{"nouns": [...], "verbs": [...], "adjectives": [...]}` |
 | `--story-features-path` | string | `docs/story_features.json` | JSON file with additional story conditions. One condition is randomly selected per story to add variety. **Optional:** Can be omitted to disable additional conditions. | JSON: `["make sure story has dialogue", "include magical elements", ...]` |
 | `--conversation-examples-path` | string | `config/example_conversation.txt` | Text file containing example conversations for k-shot prompting (legacy format). Improves story quality by providing context examples. **Optional:** Can be omitted to disable legacy k-shot prompting. | Text file with conversation examples |
-| `--k-shot-config-file` | string | `null` | JSON file containing structured k-shot configurations with metadata. **Recommended** over legacy text format. Provides multiple configurations and custom sample selection. **Optional:** Can be omitted to use legacy format. | JSON: `{"samples": [{"name": "...", "messages": [...]}]}` |
+| `--k-shot-config-file` | string | `config/k_shot_prompting_samples.json` | JSON file containing structured k-shot configurations with metadata. **Recommended** over legacy text format. Provides multiple configurations and custom sample selection. **Optional:** Can be omitted to use legacy format. | JSON: `{"samples": [{"name": "...", "messages": [...]}]}` |
 | `--k-shot-config-name` | string | `null` | Name of specific k-shot configuration to use from JSON file. If not specified, uses first configuration. **Requires:** `--k-shot-config-file` to be specified. | String matching configuration name |
 | `--list-k-shot-configs` | flag | `false` | List available k-shot configurations from JSON file and exit. **Requires:** `--k-shot-config-file` to be specified. | N/A (flag) |
 | `--require-k-shot` | flag | `false` | Fail if k-shot data is missing instead of continuing without examples. Use for strict validation when k-shot prompting is essential. | N/A (flag) |

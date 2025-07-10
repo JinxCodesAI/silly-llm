@@ -4,7 +4,7 @@
   "data_paths": {
     "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
     "story_features_path": "docs/story_features.json",
-    "k_shot_config_file": "docs/k_shot_prompting_samples.json",
+    "k_shot_config_file": "training/synthetic_data_generation/config/k_shot_prompting_samples.json",
     "k_shot_config_name": null
   },
   "k_shot_settings": {
