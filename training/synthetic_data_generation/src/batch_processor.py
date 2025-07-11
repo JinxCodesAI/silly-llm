@@ -79,23 +79,30 @@ class BatchProcessor:
             generation_time = time.time() - start_time
             memory_used = self.llm_provider.get_memory_usage() - start_memory
             
-            # Process results
+            # Process results with batch validation support
             stories = []
             total_tokens = 0
-            
-            for i, (prompt, generated_text) in enumerate(zip(prompts, generated_texts)):
-                try:
-                    story = await self._create_story_from_generation(
-                        prompt, generated_text, generation_time / len(prompts),
-                        memory_used / len(prompts)
-                    )
 
-                    if story:
-                        stories.append(story)
-                        total_tokens += story.tokens_generated
-                
-                except Exception as e:
-                    logger.error(f"Failed to process story {i}: {e}")
+            # Check if we should use batch validation
+            if self.custom_validator and hasattr(self.custom_validator, 'validate_batch'):
+                stories, total_tokens = await self._process_batch_with_validation(
+                    prompts, generated_texts, generation_time, memory_used
+                )
+            else:
+                # Use individual processing (legacy behavior)
+                for i, (prompt, generated_text) in enumerate(zip(prompts, generated_texts)):
+                    try:
+                        story = await self._create_story_from_generation(
+                            prompt, generated_text, generation_time / len(prompts),
+                            memory_used / len(prompts)
+                        )
+
+                        if story:
+                            stories.append(story)
+                            total_tokens += story.tokens_generated
+
+                    except Exception as e:
+                        logger.error(f"Failed to process story {i}: {e}")
             
             # Calculate metrics
             success_rate = len(stories) / len(prompts) if prompts else 0.0
@@ -241,6 +248,207 @@ class BatchProcessor:
             
         except Exception as e:
             logger.error(f"Failed to create story from generation: {e}")
+            return None
+
+    async def _process_batch_with_validation(self, prompts, generated_texts, generation_time, memory_used):
+        """Process a batch of generated texts with batch validation support.
+
+        Args:
+            prompts: List of StoryPrompt objects
+            generated_texts: List of generated text strings
+            generation_time: Total generation time for the batch
+            memory_used: Memory used for the batch
+
+        Returns:
+            Tuple of (stories list, total_tokens)
+        """
+        from ...common.utils import clean_generated_text, validate_story
+
+        stories = []
+        total_tokens = 0
+
+        # First pass: clean texts and perform traditional validation
+        cleaned_texts = []
+        valid_indices = []
+
+        for i, (prompt, generated_text) in enumerate(zip(prompts, generated_texts)):
+            try:
+                # Clean the generated text
+                cleaned_text = clean_generated_text(generated_text)
+
+                if not cleaned_text.strip():
+                    logger.warning(f"Empty generation for prompt {prompt.prompt_id}")
+                    continue
+
+                # Traditional validation (word count, required words)
+                if self.validate_stories:
+                    required_words = list(prompt.selected_words.values())
+                    traditional_validation = validate_story(
+                        cleaned_text, required_words, self.min_words, self.max_words
+                    )
+
+                    if not traditional_validation.is_valid:
+                        logger.debug(f"Traditional validation failed for {prompt.prompt_id}: {traditional_validation.issues}")
+                        continue
+
+                cleaned_texts.append(cleaned_text)
+                valid_indices.append(i)
+
+            except Exception as e:
+                logger.error(f"Failed to process story {i} in batch validation: {e}")
+                continue
+
+        # Second pass: batch custom validation if we have valid texts
+        custom_validation_results = []
+        if cleaned_texts and self.custom_validator:
+            try:
+                logger.debug(f"Running batch validation on {len(cleaned_texts)} stories")
+                custom_validation_results = await self.custom_validator.validate_batch(cleaned_texts)
+            except Exception as e:
+                logger.warning(f"Batch custom validation failed, falling back to individual: {e}")
+                # Fallback to individual validation
+                for cleaned_text in cleaned_texts:
+                    try:
+                        result = await self.custom_validator.validate(cleaned_text)
+                        custom_validation_results.append(result)
+                    except Exception as individual_e:
+                        logger.warning(f"Individual validation also failed: {individual_e}")
+                        # Create a failed validation result
+                        from ..validation.base import CustomValidationResult
+                        failed_result = CustomValidationResult(
+                            is_valid=False,
+                            score=0.0,
+                            details={"error": str(individual_e)},
+                            reasoning=f"Validation failed: {str(individual_e)}"
+                        )
+                        custom_validation_results.append(failed_result)
+
+        # Third pass: create stories for texts that passed all validation
+        if self.custom_validator and custom_validation_results:
+            # Process with custom validation results
+            for i, (cleaned_text, validation_result) in enumerate(zip(cleaned_texts, custom_validation_results)):
+                original_index = valid_indices[i]
+                prompt = prompts[original_index]
+                generated_text = generated_texts[original_index]
+
+                # Check custom validation result
+                if not validation_result.is_valid:
+                    logger.debug(f"Custom validation failed for {prompt.prompt_id}: {validation_result.reasoning}")
+                    continue
+
+                try:
+                    # Create the story object
+                    story = await self._create_story_object(
+                        prompt, generated_text, cleaned_text,
+                        generation_time / len(prompts),
+                        memory_used / len(prompts)
+                    )
+
+                    if story:
+                        stories.append(story)
+                        total_tokens += story.tokens_generated
+
+                except Exception as e:
+                    logger.error(f"Failed to create story object for {prompt.prompt_id}: {e}")
+        else:
+            # Process without custom validation (only traditional validation was applied)
+            for i, cleaned_text in enumerate(cleaned_texts):
+                original_index = valid_indices[i]
+                prompt = prompts[original_index]
+                generated_text = generated_texts[original_index]
+
+                try:
+                    # Create the story object
+                    story = await self._create_story_object(
+                        prompt, generated_text, cleaned_text,
+                        generation_time / len(prompts),
+                        memory_used / len(prompts)
+                    )
+
+                    if story:
+                        stories.append(story)
+                        total_tokens += story.tokens_generated
+
+                except Exception as e:
+                    logger.error(f"Failed to create story object for {prompt.prompt_id}: {e}")
+
+        logger.info(f"Batch validation completed: {len(stories)}/{len(prompts)} stories passed all validation")
+        return stories, total_tokens
+
+    async def _create_story_object(self, prompt, generated_text, cleaned_text, generation_time, memory_used):
+        """Create a GeneratedStory object from validated content.
+
+        Args:
+            prompt: StoryPrompt object
+            generated_text: Original generated text
+            cleaned_text: Cleaned text that passed validation
+            generation_time: Generation time for this story
+            memory_used: Memory used for this story
+
+        Returns:
+            GeneratedStory object or None if creation fails
+        """
+        try:
+            import uuid
+            from ...common.utils import count_words
+
+            # Count words and tokens
+            word_count = count_words(cleaned_text)
+
+            # Count tokens if tokenizer is available, otherwise estimate
+            if hasattr(self.llm_provider, 'tokenizer') and self.llm_provider.tokenizer:
+                try:
+                    tokens_generated = len(self.llm_provider.tokenizer.encode(cleaned_text))
+                except Exception:
+                    # Fallback estimation: roughly 4 characters per token
+                    tokens_generated = len(cleaned_text) // 4
+            else:
+                # Fallback estimation: roughly 4 characters per token
+                tokens_generated = len(cleaned_text) // 4
+
+            tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0.0
+
+            # Prepare k-shot examples for metadata
+            k_shot_examples_data = []
+            for example in prompt.k_shot_examples:
+                k_shot_examples_data.append({
+                    "role": example.role,
+                    "content": example.content
+                })
+
+            # Create story object with enhanced metadata
+            story = GeneratedStory(
+                story_id=f"story_{uuid.uuid4().hex[:8]}",
+                prompt_id=prompt.prompt_id,
+                content=cleaned_text,
+                word_count=word_count,
+                generation_time=generation_time,
+                tokens_generated=tokens_generated,
+                tokens_per_second=tokens_per_second,
+                memory_used_gb=memory_used,
+                metadata={
+                    "selected_words": prompt.selected_words,
+                    "additional_condition": prompt.additional_condition,
+                    "k_shot_count": len(prompt.k_shot_examples),
+                    "template_version": prompt.metadata.get("template_version", "unknown"),
+                    "full_prompt": prompt.full_prompt,
+                    "template": prompt.template,
+                    "k_shot_examples": k_shot_examples_data,
+                    "multi_turn_conversation": {
+                        "messages": k_shot_examples_data + [{
+                            "role": "user",
+                            "content": prompt.full_prompt
+                        }],
+                        "total_messages": len(k_shot_examples_data) + 1,
+                        "conversation_format": "openai_chat_format"
+                    }
+                }
+            )
+
+            return story
+
+        except Exception as e:
+            logger.error(f"Failed to create story object: {e}")
             return None
     
     async def process_multiple_batches(self,

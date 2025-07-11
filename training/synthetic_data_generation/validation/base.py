@@ -1,7 +1,7 @@
 """Base classes for custom validation system."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 from ...common.llm_providers import LLMProvider
@@ -122,3 +122,106 @@ class BaseValidator(ABC):
                 details={"error": str(e)},
                 reasoning=f"Validation failed with error: {str(e)}"
             )
+
+    async def validate_batch(self, story_contents: List[str]) -> List[CustomValidationResult]:
+        """Validate multiple stories in a batch for improved performance.
+
+        This method provides batch validation support while maintaining backward compatibility.
+        Subclasses can override this method for custom batch processing logic.
+
+        Args:
+            story_contents: List of story contents to validate
+
+        Returns:
+            List of CustomValidationResult objects, one for each story
+        """
+        if not story_contents:
+            return []
+
+        # Get batch size from generation config, default to 1 for backward compatibility
+        batch_size = getattr(self.generation_config, 'batch_size', 1)
+
+        # If batch size is 1 or we have only one story, use individual validation
+        if batch_size == 1 or len(story_contents) == 1:
+            results = []
+            for story_content in story_contents:
+                result = await self.validate(story_content)
+                results.append(result)
+            return results
+
+        try:
+            # Create validation prompts for all stories
+            validation_prompts = [self.get_validation_prompt(content) for content in story_contents]
+
+            # Create LLM requests for batch processing
+            from ...common.data_models import LLMRequest, LLMMessage
+            requests = [
+                LLMRequest(messages=[LLMMessage(role="user", content=prompt)])
+                for prompt in validation_prompts
+            ]
+
+            # Generate validation responses in batch
+            responses = await self.provider.generate_batch(requests, self.generation_config)
+
+            if not responses or len(responses) != len(story_contents):
+                # Fallback to individual validation if batch fails
+                return await self._fallback_individual_validation(story_contents)
+
+            # Parse responses
+            results = []
+            for i, (story_content, response) in enumerate(zip(story_contents, responses)):
+                try:
+                    result = self.parse_validation_response(response)
+
+                    # Add common details
+                    result.details.update({
+                        "story_length": len(story_content),
+                        "validation_prompt": validation_prompts[i],
+                        "provider_model": self.provider.model_name,
+                        "batch_processed": True,
+                        "batch_size": len(story_contents)
+                    })
+
+                    results.append(result)
+                except Exception as e:
+                    # Create error result for this specific story
+                    error_result = CustomValidationResult(
+                        is_valid=False,
+                        score=0.0,
+                        details={"error": str(e), "batch_processed": True},
+                        reasoning=f"Batch validation parsing failed: {str(e)}"
+                    )
+                    results.append(error_result)
+
+            return results
+
+        except Exception as e:
+            # Fallback to individual validation if batch processing fails
+            return await self._fallback_individual_validation(story_contents)
+
+    async def _fallback_individual_validation(self, story_contents: List[str]) -> List[CustomValidationResult]:
+        """Fallback to individual validation when batch processing fails.
+
+        Args:
+            story_contents: List of story contents to validate
+
+        Returns:
+            List of CustomValidationResult objects
+        """
+        results = []
+        for story_content in story_contents:
+            try:
+                result = await self.validate(story_content)
+                # Mark as fallback processed
+                result.details.update({"batch_processed": False, "fallback_used": True})
+                results.append(result)
+            except Exception as e:
+                # Create error result
+                error_result = CustomValidationResult(
+                    is_valid=False,
+                    score=0.0,
+                    details={"error": str(e), "batch_processed": False, "fallback_used": True},
+                    reasoning=f"Individual validation failed: {str(e)}"
+                )
+                results.append(error_result)
+        return results

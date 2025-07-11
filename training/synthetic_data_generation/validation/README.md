@@ -26,6 +26,7 @@ Add validation configuration to your JSON config file:
       "provider": "TransformersProvider",
       "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
       "generation": {
+        "batch_size": 8,
         "max_new_tokens": 128,
         "temperature": 0.1,
         "top_p": 0.9,
@@ -43,6 +44,7 @@ Add validation configuration to your JSON config file:
 - **provider**: Provider type (`TransformersProvider`, `OpenAICompatible`, `MockProvider`)
 - **validator_class**: Full Python path to validator class
 - **generation**: Generation parameters for validation (inherits from main config if not specified)
+  - **batch_size**: Number of stories to validate in parallel (default: 1 for backward compatibility)
 
 ## Supported Providers
 
@@ -181,32 +183,77 @@ from training.common.llm_providers import TransformersProvider
 # Create provider
 provider = TransformersProvider(model_name="Qwen/Qwen3-4B")
 
-# Create validator
-config = {"generation": {"max_new_tokens": 128, "temperature": 0.1}}
+# Create validator with batch support
+config = {
+    "generation": {
+        "batch_size": 8,
+        "max_new_tokens": 128,
+        "temperature": 0.1
+    }
+}
 validator = QualityValidator(provider, config)
 
-# Validate a story
+# Validate a single story
 story = "Once upon a time, there was a happy cat."
 result = await validator.validate(story)
 
 print(f"Valid: {result.is_valid}")
 print(f"Score: {result.score}")
 print(f"Reasoning: {result.reasoning}")
+
+# Validate multiple stories in batch
+stories = [
+    "Once upon a time, there was a happy cat.",
+    "The brave little mouse saved the day.",
+    "A magical forest full of friendly animals."
+]
+results = await validator.validate_batch(stories)
+
+for i, result in enumerate(results):
+    print(f"Story {i+1}: Valid={result.is_valid}, Score={result.score}")
 ```
 
 ## Validation Flow
 
+### Individual Validation (Legacy)
 1. **Story Generation**: Stories are generated using the main LLM provider
-2. **Traditional Validation**: Basic checks (word count, required words)
-3. **Custom Validation**: If configured, stories are validated using the custom validator
+2. **Traditional Validation**: Basic checks (word count, required words) for each story
+3. **Custom Validation**: If configured, each story is validated individually
 4. **Result Processing**: Only stories that pass all validations are included in output
+
+### Batch Validation (New)
+1. **Story Generation**: Stories are generated using the main LLM provider
+2. **Traditional Validation**: Basic checks (word count, required words) for all stories
+3. **Batch Custom Validation**: Valid stories are sent for validation in batches
+4. **Result Processing**: Only stories that pass all validations are included in output
+
+The system automatically chooses batch validation when:
+- Custom validator is configured
+- Validator supports `validate_batch()` method
+- `generation.batch_size > 1` in validation settings
 
 ## Performance Considerations
 
 - Validation adds processing time (each story requires an additional LLM call)
 - Use smaller/faster models for validation when possible
-- Consider batch validation for better throughput
+- **Batch validation** significantly improves throughput by validating multiple stories simultaneously
+- Configure `generation.batch_size` in validation settings to control parallelization
+- Larger batch sizes improve efficiency but use more memory
 - Mock provider is useful for testing without validation overhead
+
+### Batch Validation Performance
+
+The validation system now supports batch processing for improved performance:
+
+- **Individual validation** (batch_size=1): Each story validated separately (legacy behavior)
+- **Batch validation** (batch_size>1): Multiple stories validated in parallel
+- **Automatic fallback**: If batch validation fails, falls back to individual validation
+- **Memory efficiency**: Batch size should be tuned based on available GPU memory
+
+Recommended batch sizes:
+- **Local models**: 8-16 stories per batch
+- **API providers**: 4-8 stories per batch (to avoid rate limits)
+- **Large models**: 2-4 stories per batch (memory constraints)
 
 ## Error Handling
 
@@ -214,6 +261,18 @@ print(f"Reasoning: {result.reasoning}")
 - Stories with validation errors are excluded from output
 - Provider initialization errors disable custom validation
 - Fallback to traditional validation if custom validation fails
+- **Batch validation fallback**: If batch validation fails, automatically falls back to individual validation
+- **Graceful degradation**: Missing batch_size parameter defaults to individual validation (batch_size=1)
+
+## Backward Compatibility
+
+The batch validation implementation maintains full backward compatibility:
+
+- **Existing validators**: Continue to work without modification
+- **Configuration files**: Work with or without `batch_size` parameter
+- **Individual validation**: Still available and used as fallback
+- **Default behavior**: If `batch_size` is not specified, defaults to 1 (individual validation)
+- **Legacy support**: Validators without `validate_batch()` method automatically use individual validation
 
 ## Testing
 

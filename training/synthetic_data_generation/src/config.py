@@ -46,7 +46,7 @@ class CustomValidationConfig(BaseModel):
     model_name: str = Field(description="Model name for validation")
     provider: str = Field(description="Provider type (TransformersProvider, OpenAICompatible, MockProvider)")
     validator_class: str = Field(description="Full path to validator class")
-    generation: Dict[str, Any] = Field(default_factory=dict, description="Generation parameters for validation")
+    generation: Dict[str, Any] = Field(default_factory=dict, description="Generation parameters for validation including batch_size")
 
 
 class ValidationSettings(BaseModel):
@@ -178,7 +178,20 @@ DEFAULT_CONFIG_TEMPLATE = """{
   "validation_settings": {
     "validate_stories": true,
     "min_words": 50,
-    "max_words": 300
+    "max_words": 300,
+    "custom_validation": {
+      "model_name": "Qwen/Qwen3-4B",
+      "provider": "TransformersProvider",
+      "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
+      "generation": {
+        "batch_size": 8,
+        "max_new_tokens": 128,
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "do_sample": true,
+        "repetition_penalty": 1.0
+      }
+    }
   },
   "logging": {
     "log_level": "INFO"

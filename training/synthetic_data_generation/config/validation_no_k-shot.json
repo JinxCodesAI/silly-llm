@@ -35,6 +35,7 @@
       "provider": "OpenAICompatible",
       "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
       "generation": {
+        "batch_size": 16,
         "max_new_tokens": 4096,
         "temperature": 0.1,
         "top_p": 0.9,
