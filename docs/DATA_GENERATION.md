@@ -1505,7 +1505,7 @@ export AI_API_KEY=your-api-key-here
 
 The OpenAI-compatible provider works with any service that implements the OpenAI chat completions API:
 
-- **OpenAI** - `https://api.openai.com/v1`
+- **OpenRouter** - `https://openrouter.ai/api/v1`
 - **Together AI** - `https://api.together.xyz/v1`
 - **Anyscale** - `https://api.endpoints.anyscale.com/v1`
 - **Local servers** (e.g., vLLM, text-generation-webui) - `http://localhost:8000/v1`

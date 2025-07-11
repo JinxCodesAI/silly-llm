@@ -368,6 +368,18 @@ CONFIGURATION:
     logger.info(f"  K-shot examples: {config.generation_settings.use_k_shot} (count: {config.generation_settings.k_shot_count})")
     logger.info(f"  Word diversity: {config.generation_settings.ensure_diversity}")
     logger.info(f"  Output path: {config.output_settings.output_path}")
+
+    # Log validation configuration
+    logger.info("Validation Configuration:")
+    logger.info(f"  Basic validation: {config.validation_settings.validate_stories}")
+    logger.info(f"  Word limits: {config.validation_settings.min_words}-{config.validation_settings.max_words}")
+    if config.validation_settings.custom_validation:
+        cv = config.validation_settings.custom_validation
+        logger.info(f"  Custom validation: {cv.validator_class}")
+        logger.info(f"  Validation model: {cv.model_name}")
+        logger.info(f"  Validation provider: {cv.provider}")
+    else:
+        logger.info(f"  Custom validation: Disabled")
     
     try:
         # Initialize story generator

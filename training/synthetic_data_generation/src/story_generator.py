@@ -2,6 +2,7 @@
 
 import time
 import json
+import importlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
@@ -15,6 +16,7 @@ from ...common.utils import load_vocabulary, save_stories_jsonl
 from .template_manager import TemplateManager
 from .prompt_generator import PromptGenerator
 from .batch_processor import BatchProcessor
+from ..validation.base import BaseValidator
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ class StoryGenerator:
                  device: str = "auto",
                  use_mock_provider: bool = False,
                  use_openai_provider: bool = False,
-                 api_base_url: str = "https://api.openai.com/v1",
+                 api_base_url: str = "https://openrouter.ai/api/v1",
                  validation_settings: Optional[Dict[str, Any]] = None):
         """Initialize story generator.
 
@@ -116,16 +118,83 @@ class StoryGenerator:
             k_shot_settings=self.k_shot_settings
         )
         
+        # Initialize custom validator if configured
+        custom_validator = self._create_custom_validator()
+
         # Initialize batch processor with validation settings
         self.batch_processor = BatchProcessor(
             llm_provider=self.llm_provider,
             generation_config=self.generation_config,
             validate_stories=self.validation_settings.get('validate_stories', True),
             min_words=self.validation_settings.get('min_words', 50),
-            max_words=self.validation_settings.get('max_words', 300)
+            max_words=self.validation_settings.get('max_words', 300),
+            custom_validator=custom_validator
         )
-        
+
         logger.info("All components initialized successfully")
+
+    def _create_custom_validator(self) -> Optional[BaseValidator]:
+        """Create custom validator if configured.
+
+        Returns:
+            BaseValidator instance or None if not configured
+        """
+        custom_validation_config = self.validation_settings.get('custom_validation')
+        if not custom_validation_config:
+            return None
+
+        try:
+            # Extract configuration
+            model_name = custom_validation_config['model_name']
+            provider_type = custom_validation_config['provider']
+            validator_class_path = custom_validation_config['validator_class']
+            generation_config = custom_validation_config.get('generation', {})
+
+            # Create validation provider
+            validation_provider = self._create_validation_provider(model_name, provider_type)
+
+            # Import and instantiate validator class
+            module_path, class_name = validator_class_path.rsplit('.', 1)
+            module = importlib.import_module(module_path)
+            validator_class = getattr(module, class_name)
+
+            # Create validator instance
+            validator_config = {
+                'generation': generation_config
+            }
+            validator = validator_class(validation_provider, validator_config)
+
+            logger.info(f"Custom validator initialized: {validator_class_path} with model {model_name}")
+            return validator
+
+        except Exception as e:
+            logger.error(f"Failed to initialize custom validator: {e}")
+            return None
+
+    def _create_validation_provider(self, model_name: str, provider_type: str) -> LLMProvider:
+        """Create LLM provider for validation.
+
+        Args:
+            model_name: Model name for validation
+            provider_type: Provider type
+
+        Returns:
+            LLMProvider instance
+        """
+        if provider_type == "MockProvider":
+            return MockLLMProvider(model_name=model_name)
+        elif provider_type == "OpenAICompatible":
+            return OpenAICompatibleProvider(
+                model_name=model_name,
+                api_base_url=self.api_base_url
+            )
+        elif provider_type == "TransformersProvider":
+            return TransformersProvider(
+                model_name=model_name,
+                device=self.device
+            )
+        else:
+            raise ValueError(f"Unknown provider type for validation: {provider_type}")
 
     def _get_diverse_words(self, used_combinations: set) -> Dict[str, str]:
         """Get diverse word combination avoiding previously used combinations.

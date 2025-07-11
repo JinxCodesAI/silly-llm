@@ -12,6 +12,7 @@ from ...common.data_models import (
 )
 from ...common.llm_providers import LLMProvider
 from ...common.utils import validate_story, clean_generated_text, count_words
+from ..validation.base import BaseValidator
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +25,24 @@ class BatchProcessor:
                  generation_config: GenerationConfig,
                  validate_stories: bool = True,
                  min_words: int = 50,
-                 max_words: int = 300):
+                 max_words: int = 300,
+                 custom_validator: Optional[BaseValidator] = None):
         """Initialize batch processor.
-        
+
         Args:
             llm_provider: LLMProvider instance
             generation_config: Configuration for generation
             validate_stories: Whether to validate generated stories
             min_words: Minimum words for validation
             max_words: Maximum words for validation
+            custom_validator: Optional custom validator instance
         """
         self.llm_provider = llm_provider
         self.generation_config = generation_config
         self.validate_stories = validate_stories
         self.min_words = min_words
         self.max_words = max_words
+        self.custom_validator = custom_validator
     
     async def process_batch(self, prompts: List[StoryPrompt]) -> GenerationResult:
         """Process a batch of prompts and generate stories.
@@ -81,11 +85,11 @@ class BatchProcessor:
             
             for i, (prompt, generated_text) in enumerate(zip(prompts, generated_texts)):
                 try:
-                    story = self._create_story_from_generation(
-                        prompt, generated_text, generation_time / len(prompts), 
+                    story = await self._create_story_from_generation(
+                        prompt, generated_text, generation_time / len(prompts),
                         memory_used / len(prompts)
                     )
-                    
+
                     if story:
                         stories.append(story)
                         total_tokens += story.tokens_generated
@@ -120,7 +124,7 @@ class BatchProcessor:
             logger.error(f"Batch processing failed: {e}")
             raise
 
-    def _create_story_from_generation(self,
+    async def _create_story_from_generation(self,
                                     prompt: StoryPrompt,
                                     generated_text: str,
                                     generation_time: float,
@@ -162,14 +166,26 @@ class BatchProcessor:
             
             # Validate story if enabled
             if self.validate_stories:
+                # Traditional validation (word count, required words)
                 required_words = list(prompt.selected_words.values())
-                validation = validate_story(
+                traditional_validation = validate_story(
                     cleaned_text, required_words, self.min_words, self.max_words
                 )
-                
-                if not validation.is_valid:
-                    logger.debug(f"Story validation failed for {prompt.prompt_id}: {validation.issues}")
+
+                if not traditional_validation.is_valid:
+                    logger.debug(f"Traditional validation failed for {prompt.prompt_id}: {traditional_validation.issues}")
                     return None
+
+                # Custom validation if configured
+                if self.custom_validator:
+                    try:
+                        custom_validation = await self.custom_validator.validate(cleaned_text)
+                        if not custom_validation.is_valid:
+                            logger.debug(f"Custom validation failed for {prompt.prompt_id}: {custom_validation.reasoning}")
+                            return None
+                    except Exception as e:
+                        logger.warning(f"Custom validation error for {prompt.prompt_id}: {e}")
+                        # Continue with story if custom validation fails due to error
             
             # Prepare k-shot examples for metadata
             k_shot_examples_data = []
