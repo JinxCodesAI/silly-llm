@@ -137,6 +137,20 @@ class BatchProcessor:
                 metadata=rejection_details
             )
 
+    def _get_from_prefix(self, txt: str):
+        # Find the position of "once upon a time" case insensitively
+        prefix = "STORY:\n"
+        lower_txt = txt.lower()
+        
+        # Find the starting position of the prefix
+        start_pos = lower_txt.find(prefix.lower())
+        
+        # If prefix is found, return the substring from that position
+        if start_pos != -1:
+            return txt[start_pos:]
+        else:
+            return ""
+
     async def _create_story_from_generation(self,
                                     prompt: StoryPrompt,
                                     generated_text: str,
@@ -156,6 +170,8 @@ class BatchProcessor:
         try:
             # Clean the generated text
             cleaned_text = clean_generated_text(generated_text)
+
+            cleaned_text = self._get_from_prefix(cleaned_text)
             
             if not cleaned_text.strip():
                 logger.warning(f"Empty generation for prompt {prompt.prompt_id}")

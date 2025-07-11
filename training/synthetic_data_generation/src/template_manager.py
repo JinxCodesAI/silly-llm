@@ -21,7 +21,7 @@ class TemplateManager:
             "Generate simple, short (up to 150 words) bed time story written entirely in English, easy to understand and follow by 3 years old who knows only English\n"
             "containing 3 English words {word1} {word2} {word3}\n\n"
             "{additional_condition}\n\n"
-            "keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)"
+            "keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc) start with 'STORY:\n'"
         )
         
         self.story_features = []
