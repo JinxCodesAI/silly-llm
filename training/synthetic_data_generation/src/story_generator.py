@@ -70,10 +70,13 @@ class StoryGenerator:
         self.use_openai_provider = use_openai_provider
         self.api_base_url = api_base_url
         self.validation_settings = validation_settings or {}
-        
+
         # Use default config if not provided
         self.generation_config = generation_config or GenerationConfig()
-        
+
+        # Track intermediate saves
+        self._last_saved_interval = 0
+
         # Initialize components
         self._initialize_components()
     
@@ -240,7 +243,10 @@ class StoryGenerator:
         """
         logger.info(f"Starting generation of {num_stories} stories")
         start_time = time.time()
-        
+
+        # Reset intermediate save tracking for this generation run
+        self._last_saved_interval = 0
+
         # Process in batches with proper batch IDs
         all_stories = []
         all_results = []
@@ -309,9 +315,8 @@ class StoryGenerator:
                     progress_callback(len(all_stories), num_stories)
 
                     # Save intermediate results if requested
-                    if save_intermediate and len(all_stories) % intermediate_save_interval == 0:
-                        intermediate_path = f"{output_path}.intermediate_{len(all_stories)}.jsonl"
-                        self._save_stories(all_stories, intermediate_path)
+                    if save_intermediate:
+                        self._handle_intermediate_save(all_stories, output_path, intermediate_save_interval)
 
                     # Clear memory between batches
                     self.llm_provider.clear_memory()
@@ -371,6 +376,33 @@ class StoryGenerator:
                 story_dict['created_at'] = story_dict['created_at'].isoformat()
             story_dicts.append(story_dict)
         save_stories_jsonl(story_dicts, str(timestamped_path))
+
+    def _handle_intermediate_save(self, all_stories: List[GeneratedStory], output_path: str, intermediate_save_interval: int):
+        """Handle intermediate saving logic to ensure exactly one save per interval.
+
+        This method tracks intervals and ensures that for each intermediate_save_interval
+        exactly one file is created, avoiding the modulo bug where saves could be skipped
+        if story counts don't align with interval boundaries.
+
+        Args:
+            all_stories: Current list of all generated stories
+            output_path: Base output path for intermediate files
+            intermediate_save_interval: Number of stories per save interval
+        """
+        current_story_count = len(all_stories)
+        current_interval = current_story_count // intermediate_save_interval
+
+        # Check if we've crossed into a new interval that hasn't been saved yet
+        if current_interval > self._last_saved_interval and current_story_count >= intermediate_save_interval:
+            # Calculate the exact count for this interval save
+            save_count = current_interval * intermediate_save_interval
+            intermediate_path = f"{output_path}.intermediate_{save_count}.jsonl"
+
+            logger.info(f"Saving intermediate results: {current_story_count} stories generated, "
+                       f"saving at interval {current_interval} (target: {save_count} stories)")
+
+            self._save_stories(all_stories, intermediate_path)
+            self._last_saved_interval = current_interval
     
     def _save_metadata(self, metadata: Dict[str, Any], output_path: Path):
         """Save generation metadata."""
