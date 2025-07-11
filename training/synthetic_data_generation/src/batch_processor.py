@@ -124,6 +124,19 @@ class BatchProcessor:
             logger.error(f"Batch processing failed: {e}")
             raise
 
+    def _generate_error_story(self,  prompt: StoryPrompt, generated_text: str, rejection_details: Any):
+        return GeneratedStory(
+                story_id=f"story_{uuid.uuid4().hex[:8]}",
+                prompt_id=prompt.prompt_id,
+                content=generated_text,
+                word_count=0,
+                generation_time=0,
+                tokens_generated=0,
+                tokens_per_second=0,
+                memory_used_gb=0,
+                metadata=rejection_details
+            )
+
     async def _create_story_from_generation(self,
                                     prompt: StoryPrompt,
                                     generated_text: str,
@@ -146,7 +159,7 @@ class BatchProcessor:
             
             if not cleaned_text.strip():
                 logger.warning(f"Empty generation for prompt {prompt.prompt_id}")
-                return None
+                return self._generate_error_story(prompt, generated_text, { "error":"generated text empty"})
             
             # Count words and tokens
             word_count = count_words(cleaned_text)
@@ -174,7 +187,7 @@ class BatchProcessor:
 
                 if not traditional_validation.is_valid:
                     logger.debug(f"Traditional validation failed for {prompt.prompt_id}: {traditional_validation.issues}")
-                    return None
+                    return self._generate_error_story(prompt, generated_text, { "prompt_id":prompt.prompt_id, "issues":traditional_validation.issues })
 
                 # Custom validation if configured
                 if self.custom_validator:
@@ -182,7 +195,7 @@ class BatchProcessor:
                         custom_validation = await self.custom_validator.validate(cleaned_text)
                         if not custom_validation.is_valid:
                             logger.debug(f"Custom validation failed for {prompt.prompt_id}: {custom_validation.reasoning}")
-                            return None
+                            return self._generate_error_story(prompt, generated_text, { "prompt_id":prompt.prompt_id, "reasoning":custom_validation.reasoning })
                     except Exception as e:
                         logger.warning(f"Custom validation error for {prompt.prompt_id}: {e}")
                         # Continue with story if custom validation fails due to error

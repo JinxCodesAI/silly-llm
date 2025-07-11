@@ -434,6 +434,7 @@ class OpenAICompatibleProvider(LLMProvider):
         # Convert LLMRequest messages directly to OpenAI format - FIXES THE CRITICAL BUG!
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
 
+        print("max_tokens", config.max_new_tokens)
         # Prepare the request payload
         payload = {
             "model": self.model_name,

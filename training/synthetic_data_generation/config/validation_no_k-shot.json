@@ -1,0 +1,49 @@
+{
+  "model_name": "Qwen/Qwen3-0.6B",
+  "device": "auto",
+  "generation": {
+    "batch_size": 32,
+    "max_new_tokens": 2048,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "do_sample": true,
+    "repetition_penalty": 1.1,
+    "use_cache": true
+  },
+  "data_paths": {
+    "vocabulary_path": "training/synthetic_data_generation/config/vocabulary.json",
+    "story_features_path": "docs/story_features.json",
+    "conversation_examples_path": "training/synthetic_data_generation/config/example_conversation.txt"
+  },
+  "generation_settings": {
+    "num_stories": 128,
+    "k_shot_count": 0,
+    "use_k_shot": false,
+    "ensure_diversity": true
+  },
+  "output_settings": {
+    "output_path": "generated_stories.jsonl",
+    "save_intermediate": true,
+    "intermediate_save_interval": 3
+  },
+  "validation_settings": {
+    "validate_stories": true,
+    "min_words": 50,
+    "max_words": 300,
+    "custom_validation": {
+      "model_name": "google/gemini-2.5-flash-lite-preview-06-17",
+      "provider": "OpenAICompatible",
+      "validator_class": "training.synthetic_data_generation.validation.QualityValidator",
+      "generation": {
+        "max_new_tokens": 4096,
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "do_sample": true,
+        "repetition_penalty": 1.0
+      }
+    }
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}
