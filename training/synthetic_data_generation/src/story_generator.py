@@ -364,13 +364,28 @@ class StoryGenerator:
 
         # Convert to dictionaries for JSON serialization
         story_dicts = []
+        correct_story_dicts = []
+
         for story in stories:
             story_dict = story.dict()
             # Convert datetime to string for JSON serialization
             if 'created_at' in story_dict:
                 story_dict['created_at'] = story_dict['created_at'].isoformat()
             story_dicts.append(story_dict)
+
+            # Add to correct stories if word_count > 0
+            if story.word_count > 0:
+                correct_story_dicts.append(story_dict)
+
+        # Save all stories (existing behavior)
         save_stories_jsonl(story_dicts, str(timestamped_path))
+
+        # Save only correct stories to a separate file
+        correct_path = path_obj.with_stem(f"{path_obj.stem}_{timestamp}_correct")
+        save_stories_jsonl(correct_story_dicts, str(correct_path))
+
+        logger.info(f"Saved {len(story_dicts)} total stories to {timestamped_path}")
+        logger.info(f"Saved {len(correct_story_dicts)} correct stories to {correct_path}")
     
     def _save_metadata(self, metadata: Dict[str, Any], output_path: Path):
         """Save generation metadata."""
