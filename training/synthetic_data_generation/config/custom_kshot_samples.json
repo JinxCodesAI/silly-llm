@@ -1,0 +1,116 @@
+{
+  "description": "Custom k-shot examples for themed story generation",
+  "format": "Each sample demonstrates different themes and complexity levels",
+  "samples": [
+    {
+      "name": "animals-easy",
+      "k_shot_count": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\ncontaining 3 English words rabbit garden happy\nmake sure the story features animals as main characters\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Rosie the rabbit loved her garden. Every morning, she would hop between the carrot rows, feeling so happy. The garden was full of colorful flowers and tasty vegetables. One day, Rosie found a tiny seed that sparkled in the sunlight. She planted it carefully and watered it every day. Soon, a magical flower grew that granted wishes to all the garden animals. Rosie wished for endless carrots, and her wish came true! All the animals in the garden were happy and well-fed. Rosie learned that sharing and caring makes everyone happy. The end."
+        }
+      ],
+      "metadata": {
+        "theme": "animals",
+        "difficulty": "easy",
+        "target_age": "3-5",
+        "story_length": "short",
+        "keywords": ["animals", "garden", "nature", "sharing"]
+      }
+    },
+    {
+      "name": "adventure-medium",
+      "k_shot_count": 2,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 5 years old\ncontaining 3 English words treasure map brave\nmake sure the story has adventure elements\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Captain Sam found an old treasure map in her grandmother's attic. The map showed a path through the forest to a hidden treasure. Sam felt brave and decided to follow the map. She packed her backpack with snacks and water, then set off into the woods. Following the map's directions, she crossed a babbling brook and climbed over fallen logs. Finally, she reached an old oak tree marked with an X. Digging carefully, Sam discovered a wooden box filled with beautiful seashells and colorful stones. The real treasure wasn't gold, but the adventure and courage she found within herself. Sam returned home with wonderful memories and a heart full of bravery."
+        },
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 5 years old\ncontaining 3 English words mountain climb courage\nmake sure the story has adventure elements\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "Little Maya wanted to climb the tall mountain behind her house. It looked so high and scary, but Maya had courage in her heart. She put on her hiking boots and started the journey. The path was steep and rocky, but Maya kept going. When she felt tired, she remembered her grandmother's words: 'Courage isn't about not being scared, it's about doing what's right even when you are scared.' Step by step, Maya climbed higher. At the top, she could see her whole town below. The view was beautiful! Maya felt proud of her courage and strength. She had learned that with determination and courage, she could achieve anything she set her mind to."
+        }
+      ],
+      "metadata": {
+        "theme": "adventure",
+        "difficulty": "medium",
+        "target_age": "5-8",
+        "story_length": "medium",
+        "keywords": ["adventure", "courage", "determination", "nature"]
+      }
+    },
+    {
+      "name": "magic-hard",
+      "k_shot_count": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate detailed, longer (up to 250 words) bed time story for 8 years old\ncontaining 3 English words wizard spell enchanted\nmake sure the story has magical elements and complex plot\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "In the enchanted forest of Whispering Pines, there lived an old wizard named Cornelius who had forgotten how to cast spells. For years, his magic had been fading, and now even the simplest enchantments wouldn't work. The forest creatures were worried because without the wizard's protection, dark shadows had begun creeping closer to their homes each night. Young Lily, a brave girl from the nearby village, heard about the wizard's troubles and decided to help. She ventured deep into the enchanted forest, following glowing mushrooms that lit her path. When she found Cornelius, he was sitting sadly by his cauldron, surrounded by failed spell ingredients. 'I've lost my magic,' he sighed. But Lily noticed something the wizard hadn't - his spell book was upside down! She gently turned it right-side up, and suddenly the pages began to glow with golden light. 'Sometimes,' Lily said wisely, 'we just need to look at things from a different perspective.' Cornelius tried his spell again, and this time it worked perfectly! The enchanted forest filled with warm, protective light, and the shadows retreated. The wizard learned that magic isn't just about power - it's about having the wisdom to see clearly and the humility to accept help from others."
+        }
+      ],
+      "metadata": {
+        "theme": "magic",
+        "difficulty": "hard",
+        "target_age": "8-12",
+        "story_length": "long",
+        "keywords": ["magic", "wisdom", "perspective", "helping"]
+      }
+    },
+    {
+      "name": "family-easy",
+      "k_shot_count": 1,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 4 years old\ncontaining 3 English words family love together\nmake sure the story focuses on family relationships\n\nkeep story coherent and gramatically correct"
+        },
+        {
+          "role": "assistant",
+          "content": "The Johnson family loved spending time together. Every Sunday, Mom, Dad, little Emma, and baby Jake would have a special family day. This Sunday, they decided to build a blanket fort in the living room. Dad brought the chairs, Mom found the softest blankets, and Emma helped by bringing all her favorite stuffed animals. Even baby Jake helped by giggling and clapping his hands. Together, they created the most amazing fort ever! Inside their cozy fort, they read stories, shared snacks, and told silly jokes. Emma felt so happy surrounded by her family's love. 'This is the best fort in the whole world,' she said, snuggling between Mom and Dad. The family spent the whole afternoon together in their special fort, creating memories filled with love and laughter. That night, Emma dreamed about all the wonderful times her family shared together."
+        }
+      ],
+      "metadata": {
+        "theme": "family",
+        "difficulty": "easy",
+        "target_age": "3-6",
+        "story_length": "short",
+        "keywords": ["family", "love", "togetherness", "memories"]
+      }
+    }
+  ],
+  "usage_notes": [
+    "These samples are designed for different themes and difficulty levels",
+    "Use theme_based_selector to automatically choose based on prompt content",
+    "Use difficulty_based_selector to match story complexity to target age",
+    "Metadata fields help selectors make intelligent choices"
+  ],
+  "story_features_used": [
+    "Character development",
+    "Moral lessons",
+    "Age-appropriate vocabulary",
+    "Engaging plots",
+    "Emotional connections"
+  ],
+  "vocabulary_examples": {
+    "easy_words": ["happy", "love", "together", "garden", "family"],
+    "medium_words": ["adventure", "courage", "treasure", "brave", "journey"],
+    "hard_words": ["enchanted", "wizard", "perspective", "determination", "wisdom"]
+  }
+}

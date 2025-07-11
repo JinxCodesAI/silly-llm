@@ -18,8 +18,8 @@ class TemplateManager:
             story_features_path: Path to story features JSON file
         """
         self.base_template = (
-            "Generate simple, short (up to 150 words) bed time story easy to understand and follow by 3 years old\n"
-            "containing words {word1} {word2} {word3}\n\n"
+            "Generate simple, short (up to 150 words) bed time story written entirely in English, easy to understand and follow by 3 years old who knows only English\n"
+            "containing 3 English words {word1} {word2} {word3}\n\n"
             "{additional_condition}\n\n"
             "keep story coherent and gramatically correct, write full content of the story and nothing else (no commentary, title, etc)"
         )

@@ -13,6 +13,17 @@ class DataPaths(BaseModel):
     vocabulary_path: str = Field(description="Path to vocabulary JSON file")
     story_features_path: Optional[str] = Field(default=None, description="Path to story features JSON")
     conversation_examples_path: Optional[str] = Field(default=None, description="Path to conversation examples")
+    k_shot_config_file: Optional[str] = Field(default=None, description="Path to JSON k-shot configuration file")
+    k_shot_config_name: Optional[str] = Field(default=None, description="Name of specific k-shot configuration to use")
+
+
+class KShotSettings(BaseModel):
+    """K-shot configuration settings."""
+    selector_type: str = Field(default="default", description="Type of sample selector: default, random, keyword, custom")
+    selector_function: Optional[str] = Field(default=None, description="Name of custom selector function")
+    selector_module: Optional[str] = Field(default=None, description="Module path for custom selector function")
+    fallback_config: Optional[str] = Field(default=None, description="Fallback configuration name")
+    keyword_mappings: Optional[Dict[str, str]] = Field(default=None, description="Keyword to config name mappings")
 
 
 class GenerationSettings(BaseModel):
@@ -30,11 +41,20 @@ class OutputSettings(BaseModel):
     intermediate_save_interval: int = Field(default=100, description="Save every N stories")
 
 
+class CustomValidationConfig(BaseModel):
+    """Configuration for custom validation."""
+    model_name: str = Field(description="Model name for validation")
+    provider: str = Field(description="Provider type (TransformersProvider, OpenAICompatible, MockProvider)")
+    validator_class: str = Field(description="Full path to validator class")
+    generation: Dict[str, Any] = Field(default_factory=dict, description="Generation parameters for validation")
+
+
 class ValidationSettings(BaseModel):
     """Story validation settings."""
     validate_stories: bool = Field(default=True, description="Validate generated stories")
     min_words: int = Field(default=50, description="Minimum words per story")
     max_words: int = Field(default=300, description="Maximum words per story")
+    custom_validation: Optional[CustomValidationConfig] = Field(default=None, description="Custom validation configuration")
 
 
 class LoggingSettings(BaseModel):
@@ -53,6 +73,7 @@ class StoryGenerationConfig(BaseModel):
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
     data_paths: DataPaths = Field(description="Data file paths")
     generation_settings: GenerationSettings = Field(default_factory=GenerationSettings)
+    k_shot_settings: KShotSettings = Field(default_factory=KShotSettings)
     output_settings: OutputSettings = Field(description="Output settings")
     validation_settings: ValidationSettings = Field(default_factory=ValidationSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)

@@ -12,6 +12,7 @@ from ...common.data_models import (
 )
 from ...common.llm_providers import LLMProvider
 from ...common.utils import validate_story, clean_generated_text, count_words
+from ..validation.base import BaseValidator
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +25,24 @@ class BatchProcessor:
                  generation_config: GenerationConfig,
                  validate_stories: bool = True,
                  min_words: int = 50,
-                 max_words: int = 300):
+                 max_words: int = 300,
+                 custom_validator: Optional[BaseValidator] = None):
         """Initialize batch processor.
-        
+
         Args:
             llm_provider: LLMProvider instance
             generation_config: Configuration for generation
             validate_stories: Whether to validate generated stories
             min_words: Minimum words for validation
             max_words: Maximum words for validation
+            custom_validator: Optional custom validator instance
         """
         self.llm_provider = llm_provider
         self.generation_config = generation_config
         self.validate_stories = validate_stories
         self.min_words = min_words
         self.max_words = max_words
+        self.custom_validator = custom_validator
     
     async def process_batch(self, prompts: List[StoryPrompt]) -> GenerationResult:
         """Process a batch of prompts and generate stories.
@@ -81,11 +85,11 @@ class BatchProcessor:
             
             for i, (prompt, generated_text) in enumerate(zip(prompts, generated_texts)):
                 try:
-                    story = self._create_story_from_generation(
-                        prompt, generated_text, generation_time / len(prompts), 
+                    story = await self._create_story_from_generation(
+                        prompt, generated_text, generation_time / len(prompts),
                         memory_used / len(prompts)
                     )
-                    
+
                     if story:
                         stories.append(story)
                         total_tokens += story.tokens_generated
@@ -120,7 +124,7 @@ class BatchProcessor:
             logger.error(f"Batch processing failed: {e}")
             raise
 
-    def _create_story_from_generation(self,
+    async def _create_story_from_generation(self,
                                     prompt: StoryPrompt,
                                     generated_text: str,
                                     generation_time: float,
@@ -162,14 +166,26 @@ class BatchProcessor:
             
             # Validate story if enabled
             if self.validate_stories:
+                # Traditional validation (word count, required words)
                 required_words = list(prompt.selected_words.values())
-                validation = validate_story(
+                traditional_validation = validate_story(
                     cleaned_text, required_words, self.min_words, self.max_words
                 )
-                
-                if not validation.is_valid:
-                    logger.debug(f"Story validation failed for {prompt.prompt_id}: {validation.issues}")
+
+                if not traditional_validation.is_valid:
+                    logger.debug(f"Traditional validation failed for {prompt.prompt_id}: {traditional_validation.issues}")
                     return None
+
+                # Custom validation if configured
+                if self.custom_validator:
+                    try:
+                        custom_validation = await self.custom_validator.validate(cleaned_text)
+                        if not custom_validation.is_valid:
+                            logger.debug(f"Custom validation failed for {prompt.prompt_id}: {custom_validation.reasoning}")
+                            return None
+                    except Exception as e:
+                        logger.warning(f"Custom validation error for {prompt.prompt_id}: {e}")
+                        # Continue with story if custom validation fails due to error
             
             # Prepare k-shot examples for metadata
             k_shot_examples_data = []
@@ -214,41 +230,74 @@ class BatchProcessor:
             logger.error(f"Failed to create story from generation: {e}")
             return None
     
-    async def process_multiple_batches(self, 
+    async def process_multiple_batches(self,
                                      all_prompts: List[StoryPrompt],
-                                     progress_callback: Optional[callable] = None) -> List[GenerationResult]:
-        """Process multiple batches of prompts.
-        
+                                     progress_callback: Optional[callable] = None,
+                                     max_retries: int = 3,
+                                     retry_delay: float = 5.0) -> List[GenerationResult]:
+        """Process multiple batches of prompts with retry logic.
+
         Args:
             all_prompts: All prompts to process
             progress_callback: Optional callback for progress updates
-            
+            max_retries: Maximum number of retries for failed batches
+            retry_delay: Delay in seconds between retries
+
         Returns:
             List of GenerationResult objects
         """
         batch_size = self.generation_config.batch_size
         results = []
-        
+        failed_batches = []
+
         for i in range(0, len(all_prompts), batch_size):
             batch_prompts = all_prompts[i:i + batch_size]
-            
-            logger.info(f"Processing batch {i//batch_size + 1}/{(len(all_prompts) + batch_size - 1)//batch_size}")
-            
-            try:
-                result = await self.process_batch(batch_prompts)
-                results.append(result)
-                
-                if progress_callback:
-                    progress_callback(i + len(batch_prompts), len(all_prompts))
-                
-                # Clear memory between batches
-                self.llm_provider.clear_memory()
-                
-            except Exception as e:
-                logger.error(f"Failed to process batch {i//batch_size + 1}: {e}")
-                # Continue with next batch
-                continue
-        
+            batch_num = i//batch_size + 1
+            total_batches = (len(all_prompts) + batch_size - 1)//batch_size
+
+            logger.info(f"Processing batch {batch_num}/{total_batches}")
+
+            success = False
+            for attempt in range(max_retries + 1):
+                try:
+                    result = await self.process_batch(batch_prompts)
+                    results.append(result)
+                    success = True
+
+                    if progress_callback:
+                        progress_callback(i + len(batch_prompts), len(all_prompts))
+
+                    # Clear memory between batches
+                    self.llm_provider.clear_memory()
+                    break
+
+                except Exception as e:
+                    if attempt < max_retries:
+                        logger.warning(f"Batch {batch_num} failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                        logger.info(f"Retrying batch {batch_num} in {retry_delay} seconds...")
+
+                        # Clear memory before retry
+                        self.llm_provider.clear_memory()
+
+                        # Wait before retry
+                        import asyncio
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        logger.error(f"Batch {batch_num} failed after {max_retries + 1} attempts: {e}")
+                        failed_batches.append({
+                            'batch_num': batch_num,
+                            'prompts': batch_prompts,
+                            'error': str(e)
+                        })
+
+            if not success:
+                logger.error(f"Skipping batch {batch_num} after all retry attempts failed")
+
+        if failed_batches:
+            logger.warning(f"Total failed batches: {len(failed_batches)}")
+            for failed_batch in failed_batches:
+                logger.warning(f"Failed batch {failed_batch['batch_num']}: {failed_batch['error']}")
+
         return results
 
     async def process_batch_with_ids(self, prompts: List[StoryPrompt], batch_id: int) -> GenerationResult:
@@ -278,6 +327,89 @@ class BatchProcessor:
             story.story_id = story_id
 
         return result
+
+    async def process_batch_with_adaptive_size(self, prompts: List[StoryPrompt], batch_id: int = 0) -> GenerationResult:
+        """Process batch with adaptive batch size to handle memory constraints.
+
+        Args:
+            prompts: List of StoryPrompt objects
+            batch_id: Batch identifier for story IDs
+
+        Returns:
+            GenerationResult with generated stories and metadata
+        """
+        if not prompts:
+            return GenerationResult(
+                stories=[],
+                total_generation_time=0.0,
+                average_tokens_per_second=0.0,
+                success_rate=0.0
+            )
+
+        # Try with full batch first
+        try:
+            return await self.process_batch_with_ids(prompts, batch_id)
+        except Exception as e:
+            error_msg = str(e).lower()
+
+            # Check if it's a memory-related error
+            if any(keyword in error_msg for keyword in ['cuda out of memory', 'out of memory', 'memory']):
+                logger.warning(f"Memory error detected, trying with smaller batch sizes: {e}")
+
+                # Clear memory before retrying
+                self.llm_provider.clear_memory()
+
+                # Try with progressively smaller batch sizes
+                for reduction_factor in [2, 4, 8]:
+                    smaller_batch_size = max(1, len(prompts) // reduction_factor)
+                    logger.info(f"Retrying with batch size {smaller_batch_size} (reduced by factor of {reduction_factor})")
+
+                    try:
+                        # Process in smaller sub-batches
+                        all_stories = []
+                        total_time = 0.0
+                        total_tokens = 0
+
+                        for i in range(0, len(prompts), smaller_batch_size):
+                            sub_batch = prompts[i:i + smaller_batch_size]
+                            sub_result = await self.process_batch_with_ids(sub_batch, batch_id)
+
+                            all_stories.extend(sub_result.stories)
+                            total_time += sub_result.total_generation_time
+                            total_tokens += sum(story.tokens_generated for story in sub_result.stories)
+
+                            # Clear memory between sub-batches
+                            self.llm_provider.clear_memory()
+
+                        # Calculate combined metrics
+                        success_rate = len(all_stories) / len(prompts) if prompts else 0.0
+                        avg_tokens_per_second = total_tokens / total_time if total_time > 0 else 0.0
+
+                        return GenerationResult(
+                            stories=all_stories,
+                            total_generation_time=total_time,
+                            average_tokens_per_second=avg_tokens_per_second,
+                            success_rate=success_rate,
+                            metadata={
+                                "batch_size": len(prompts),
+                                "successful_generations": len(all_stories),
+                                "failed_generations": len(prompts) - len(all_stories),
+                                "adaptive_batch_size": smaller_batch_size,
+                                "reduction_factor": reduction_factor,
+                                "model_name": self.llm_provider.model_name
+                            }
+                        )
+
+                    except Exception as sub_e:
+                        logger.warning(f"Batch size {smaller_batch_size} also failed: {sub_e}")
+                        continue
+
+                # If all smaller batch sizes failed, raise the original error
+                logger.error("All adaptive batch sizes failed")
+                raise e
+            else:
+                # Not a memory error, re-raise
+                raise e
 
     def get_processor_stats(self) -> Dict[str, Any]:
         """Get processor statistics and configuration.
